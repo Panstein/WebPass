@@ -73,8 +73,8 @@
                     @foreach (var passageiro in _passageiros)
                     {
                         <tr @key="passageiro.IdPass">
-                            <td class="passenger-id">@passageiro.IdPass</td>
-                            <td>
+                            <td class="passenger-id" data-label="Código">@passageiro.IdPass</td>
+                            <td class="card-title">
                                 @if (_editingId == passageiro.IdPass)
                                 {
                                     <input class="passenger-name-input"
@@ -88,7 +88,7 @@
                                     @passageiro.Nome
                                 }
                             </td>
-                            <td>
+                            <td class="card-actions">
                                 <div class="passenger-actions">
                                     @if (_editingId == passageiro.IdPass)
                                     {

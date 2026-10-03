@@ -1,0 +1,48 @@
+/* Phone layout: every grid row becomes a card.
+   Self-contained on purpose: removing the <link> to this file in index.html restores the
+   previous tables-with-horizontal-scroll layout (the data-label/card-* markup is inert without it). */
+@media (max-width: 760px) {
+    /* Panel header: let the count and buttons wrap instead of overflowing the screen. */
+    .module-panel-header { flex-wrap: wrap; }
+    .passenger-header-tools { flex-wrap: wrap; justify-content: flex-end; }
+
+    .passenger-table-wrap { overflow: visible; padding: 12px; }
+    .passenger-table { display: block; min-width: 0; }
+    .passenger-table tbody { display: block; }
+
+    /* Column headers are replaced by each cell's label; keep them for screen readers. */
+    .passenger-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+    .passenger-table tbody tr { display: flex; flex-direction: column; margin-bottom: 10px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); box-shadow: 0 2px 6px rgba(38,52,74,.08); }
+    .passenger-table tbody tr:last-child { margin-bottom: 0; }
+    .passenger-table tbody tr:hover { background: var(--paper); }
+
+    /* Block (not flex) so a value made of several inline pieces, like "CASA → IGREJA", stays together;
+       width: auto drops the fixed desktop column widths. */
+    .passenger-table tbody tr:nth-child(n) td { display: block; width: auto; min-height: 34px; padding: 6px 0; border-bottom: 1px solid #edf1f5; line-height: 22px; text-align: right; }
+    .passenger-table tbody tr:nth-child(n) td:last-child { border-bottom: 0; }
+    .passenger-table td[data-label]::before { content: attr(data-label); float: left; margin-right: 12px; color: #748276; font-size: 10px; font-weight: 700; letter-spacing: .04em; text-align: left; text-transform: uppercase; }
+    .passenger-table td[data-label] > input:not([type="checkbox"]) { width: 62%; min-width: 0; }
+
+    /* Name of the passenger/trip on top, as the card title. */
+    .passenger-table tbody tr:nth-child(n) td.card-title { order: -1; display: block; min-height: 0; padding: 2px 0 8px; border-bottom: 1px solid var(--line); color: var(--forest-deep); font-size: 15px; font-weight: 700; text-align: left; }
+    .passenger-table td.card-title .passenger-name-input { width: 100%; }
+
+    .passenger-table tbody tr:nth-child(n) td.card-actions { padding-top: 10px; border-bottom: 0; }
+
+    /* Billing: the status color moves from the first cell's stripe to the card's left border. */
+    .faturamento-table td.faturamento-check { width: auto; }
+    .faturamento-table tbody tr.faturamento-pago td:first-child,
+    .faturamento-table tbody tr.faturamento-pendente td:first-child { box-shadow: none; }
+    .faturamento-table tbody tr.faturamento-pago { border-left: 4px solid #2f8a4c; background: #e5f3e8; }
+    .faturamento-table tbody tr.faturamento-pendente { border-left: 4px solid #c0392b; background: #fbe7e4; }
+    .faturamento-table tbody tr:nth-child(n) td { border-bottom-color: rgba(38,52,74,.08); }
+    .faturamento-table .faturamento-check input { width: 20px; height: 20px; }
+
+    /* Billing keeps the "select all pending" checkbox from the hidden header, as a bar above the cards. */
+    .faturamento-table thead { position: static; display: block; width: auto; height: auto; overflow: visible; clip: auto; white-space: normal; }
+    .faturamento-table thead tr { display: flex; }
+    .faturamento-table thead th { display: none; }
+    .faturamento-table thead th.faturamento-check { display: flex; align-items: center; gap: 10px; width: auto; padding: 0 2px 12px; border: 0; background: none; color: #53665a; font-size: 13px; font-weight: 700; text-align: left; text-transform: none; }
+    .faturamento-table thead th.faturamento-check::after { content: "Marcar todas as pendentes"; }
+}
