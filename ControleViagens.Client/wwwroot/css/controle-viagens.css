@@ -80,6 +80,8 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--coral); outline
 
 .page-heading { margin-bottom: 28px; animation: reveal .45s ease both; }
 .page-heading h1 { font-size: 36px; }
+/* Same logo as the home page, smaller; .page-heading wins over the home-only sizes in the media queries. */
+.page-heading .page-brand-logo { width: min(100%, 150px); margin-bottom: 2px; }
 .page-heading p { max-width: 560px; margin: 0; color: #65756a; font-size: 14px; line-height: 1.6; }
 .module-panel { min-height: 260px; border: 1px solid var(--line); background: rgba(251,252,248,.84); animation: reveal .5s .08s ease both; }
 .module-panel-header { display: flex; justify-content: space-between; gap: 20px; padding: 18px 21px; border-bottom: 1px solid var(--line); }
@@ -253,6 +255,7 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--coral); outline
     .module-icon { width: 27px; height: 27px; }
     .module-title { font-size: 14px; }
     .page-heading h1 { font-size: 30px; }
+    .page-heading .page-brand-logo { width: min(100%, 120px); }
 }
 
 @media (max-width: 350px) {
