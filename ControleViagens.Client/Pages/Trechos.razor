@@ -20,12 +20,12 @@
             {
                 <span class="passenger-count">@_trechos.Count</span>
             }
-            <a class="passenger-home-button" href="/" aria-label="Voltar à tela inicial" title="Voltar à tela inicial">
+            <a class="passenger-home-button button-3d button-3d-light" href="/" aria-label="Voltar à tela inicial" title="Voltar à tela inicial">
                 <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m9 5-5 5 5 5M4 10h12" /></svg>
                 <span class="passenger-home-full">Voltar à tela inicial</span>
                 <span class="passenger-home-short">Início</span>
             </a>
-            <button class="passenger-add-button"
+            <button class="passenger-add-button button-3d"
                     type="button"
                     title="Novo trecho"
                     aria-label="Adicionar trecho"
@@ -112,7 +112,7 @@
                                 <div class="passenger-actions">
                                     @if (_editingId == trecho.IdTrecho)
                                     {
-                                        <button class="passenger-action passenger-action-save"
+                                        <button class="passenger-action passenger-action-save button-3d button-3d-light"
                                                 type="button"
                                                 title="Salvar trecho"
                                                 aria-label="Salvar trecho @FormatId(trecho.IdTrecho)"
@@ -120,7 +120,7 @@
                                                 @onclick="() => SaveEditAsync(trecho)">
                                             <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m4 10 4 4 8-8" /></svg>
                                         </button>
-                                        <button class="passenger-action"
+                                        <button class="passenger-action button-3d button-3d-light"
                                                 type="button"
                                                 title="Cancelar edição"
                                                 aria-label="Cancelar edição do trecho @FormatId(trecho.IdTrecho)"
@@ -131,7 +131,7 @@
                                     }
                                     else
                                     {
-                                        <button class="passenger-action"
+                                        <button class="passenger-action button-3d button-3d-light"
                                                 type="button"
                                                 title="Editar trecho"
                                                 aria-label="Editar trecho @FormatId(trecho.IdTrecho)"
@@ -139,7 +139,7 @@
                                                 @onclick="() => BeginEdit(trecho)">
                                             <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m13 4 3 3M4 16l3.5-.7L16 6a2.1 2.1 0 0 0-3-3l-8.5 8.7L4 16z" /></svg>
                                         </button>
-                                        <button class="passenger-action passenger-action-delete"
+                                        <button class="passenger-action passenger-action-delete button-3d button-3d-light"
                                                 type="button"
                                                 title="Excluir trecho"
                                                 aria-label="Excluir trecho @FormatId(trecho.IdTrecho)"
@@ -167,7 +167,7 @@
                     <span class="eyebrow">NOVO CADASTRO</span>
                     <h2 id="create-trecho-title">Adicionar trecho</h2>
                 </div>
-                <button class="passenger-action"
+                <button class="passenger-action button-3d button-3d-light"
                         type="button"
                         title="Fechar"
                         aria-label="Fechar janela de inclusão"
@@ -212,11 +212,11 @@
                 }
 
                 <div class="passenger-dialog-actions">
-                    <button class="passenger-cancel-button"
+                    <button class="passenger-cancel-button button-3d button-3d-light"
                             type="button"
                             disabled="@_isCreating"
                             @onclick="CloseCreateDialog">Cancelar</button>
-                    <button class="passenger-submit-button" type="submit" disabled="@_isCreating">
+                    <button class="passenger-submit-button button-3d" type="submit" disabled="@_isCreating">
                         @if (_isCreating)
                         {
                             <span>Salvando...</span>

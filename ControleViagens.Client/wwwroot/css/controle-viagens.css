@@ -141,28 +141,18 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--coral); outline
 .viagem-filters { display: grid; grid-template-columns: 150px 150px minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end; gap: 12px; padding: 14px 21px; border-bottom: 1px solid var(--line); background: rgba(255,255,255,.55); }
 .viagem-filter { min-width: 0; }
 .viagem-filter .passenger-field-label { margin-bottom: 5px; font-size: 11px; }
-.viagem-filter-clear { min-height: 40px; white-space: nowrap; }
+.viagem-filter-clear { min-height: 40px; justify-self: end; white-space: nowrap; }
 .viagem-filter-clear:disabled { cursor: default; opacity: .5; }
 
-/* Raised button: gradient face, darker "edge" below it, and it sinks when pressed. */
-.button-3d { position: relative; padding: 0 16px; border: 1px solid var(--forest-deep); border-radius: 6px; cursor: pointer; font: 600 12px "DM Sans", sans-serif; background: linear-gradient(180deg, #2a72b0 0%, var(--forest) 55%, #0b4374 100%); color: #fff; text-shadow: 0 1px 0 rgba(0,0,0,.25); box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 3px 0 var(--forest-deep), 0 5px 8px rgba(18,57,94,.28); transition: transform .08s ease, box-shadow .08s ease, filter .15s ease; }
-.button-3d:hover:not(:disabled) { filter: brightness(1.08); }
-.button-3d:active:not(:disabled) { transform: translateY(3px); box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 0 0 var(--forest-deep), 0 1px 2px rgba(18,57,94,.3); }
-.button-3d:disabled { cursor: default; border-color: var(--line); background: #e8edf3; color: var(--muted); text-shadow: none; box-shadow: 0 2px 0 #cfd7e2; opacity: 1; }
 @media (min-width: 1181px) {
-    /* .5fr: the passenger field takes only half of the free width; the rest stays empty at the end. */
+    /* .5fr: the passenger field takes only half of the free width; the rest goes to the last
+       (auto) column, where "Limpar filtros" sits against the right edge. */
     .faturamento-filters { grid-template-columns: 150px 150px minmax(0, .5fr) 120px auto; }
-    /* The auto column absorbs the space .5fr leaves free; keep the button at its own width. */
-    .faturamento-filters .viagem-filter-clear { justify-self: start; }
 }
 .faturamento-panel .module-panel-header { flex-wrap: wrap; gap: 10px; }
 .faturamento-panel .passenger-header-tools { flex-wrap: wrap; justify-content: flex-end; }
 .faturamento-button { min-height: 34px; padding: 0 12px; border: 1px solid; border-radius: 3px; color: #fff; cursor: pointer; font: 600 12px "DM Sans", sans-serif; white-space: nowrap; transition: background .15s ease; }
 .faturamento-button:disabled { cursor: default; opacity: .45; }
-.faturamento-button-faturar { border-color: #2f8a4c; background: #2f8a4c; }
-.faturamento-button-faturar:hover:not(:disabled) { background: #22693a; }
-.faturamento-button-cancelar { border-color: #c0392b; background: #fff; color: #a5301f; }
-.faturamento-button-cancelar:hover:not(:disabled) { background: #fbe7e4; }
 .faturamento-summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 20px; padding: 12px 21px; border-bottom: 1px solid var(--line); color: #53665a; font-size: 13px; }
 .faturamento-summary strong { color: var(--ink); font-variant-numeric: tabular-nums; }
 .faturamento-table { min-width: 940px; }
@@ -384,3 +374,27 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--coral); outline
     .viagem-filter-wide { grid-column: span 1; }
     .viagem-filter:nth-child(3) { grid-column: 1 / 2; }
 }
+/* Raised 3D buttons: gradient face, darker "edge" below it, and the button sinks when pressed.
+   Kept at the end of the file so it wins over each button's base style; the base class still
+   sets size, padding and font. Variants only swap the color variables. */
+.button-3d {
+    --b3d-top: #2a72b0; --b3d-mid: var(--forest); --b3d-bottom: #0b4374;
+    --b3d-border: var(--forest-deep); --b3d-edge: var(--forest-deep); --b3d-glow: rgba(18,57,94,.28);
+    border: 1px solid var(--b3d-border);
+    border-radius: 6px;
+    background: linear-gradient(180deg, var(--b3d-top) 0%, var(--b3d-mid) 55%, var(--b3d-bottom) 100%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 3px 0 var(--b3d-edge), 0 5px 8px var(--b3d-glow);
+    cursor: pointer;
+    transition: transform .08s ease, box-shadow .08s ease, filter .15s ease;
+}
+.button-3d:not(.button-3d-light) { color: #fff; text-shadow: 0 1px 0 rgba(0,0,0,.25); }
+.button-3d:hover:not(:disabled) { border-color: var(--b3d-border); background: linear-gradient(180deg, var(--b3d-top) 0%, var(--b3d-mid) 55%, var(--b3d-bottom) 100%); filter: brightness(1.07); transform: none; }
+.button-3d:active:not(:disabled) { transform: translateY(3px); box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 0 0 var(--b3d-edge), 0 1px 2px var(--b3d-glow); }
+.button-3d:disabled { border-color: var(--line); background: #e8edf3; color: var(--muted); text-shadow: none; box-shadow: 0 2px 0 #cfd7e2; filter: none; opacity: 1; }
+
+.button-3d-success { --b3d-top: #47a865; --b3d-mid: #2f8a4c; --b3d-bottom: #26753f; --b3d-border: #1f5f33; --b3d-edge: #1c5630; --b3d-glow: rgba(28,86,48,.28); }
+.button-3d-danger { --b3d-top: #d9604f; --b3d-mid: #c0392b; --b3d-bottom: #a5301f; --b3d-border: #8a2618; --b3d-edge: #7c2316; --b3d-glow: rgba(124,35,22,.28); }
+/* Light: secondary actions; keeps the text/icon color set by the button's own class. */
+.button-3d-light { --b3d-top: #ffffff; --b3d-mid: #f7f9fb; --b3d-bottom: #e6ebf1; --b3d-border: #c9d2de; --b3d-edge: #b7c2d0; --b3d-glow: rgba(38,52,74,.14); }
+.passenger-header-tools .passenger-home-button.button-3d { border-color: var(--b3d-border); border-radius: 6px; }
+.button-3d.viagem-filter-clear:disabled { cursor: default; }

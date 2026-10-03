@@ -19,17 +19,17 @@
             {
                 <span class="passenger-count">@_viagens.Count</span>
             }
-            <a class="passenger-home-button" href="/" aria-label="Voltar à tela inicial" title="Voltar à tela inicial">
+            <a class="passenger-home-button button-3d button-3d-light" href="/" aria-label="Voltar à tela inicial" title="Voltar à tela inicial">
                 <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m9 5-5 5 5 5M4 10h12" /></svg>
                 <span class="passenger-home-full">Voltar à tela inicial</span>
                 <span class="passenger-home-short">Início</span>
             </a>
-            <button class="faturamento-button faturamento-button-faturar"
+            <button class="faturamento-button button-3d button-3d-success"
                     type="button"
                     title="Faturar as viagens pendentes marcadas"
                     disabled="@(_isProcessing || !PendentesMarcadas.Any())"
                     @onclick="FaturarAsync">Faturar Itens</button>
-            <button class="faturamento-button faturamento-button-cancelar"
+            <button class="faturamento-button button-3d button-3d-danger"
                     type="button"
                     title="Estornar o faturamento das viagens pagas marcadas e de todo o grupo delas"
                     disabled="@(_isProcessing || !PagasMarcadas.Any())"
@@ -80,7 +80,7 @@
                 <option value="false">Não</option>
             </select>
         </div>
-        <button class="button-3d viagem-filter-clear"
+        <button class="passenger-cancel-button button-3d viagem-filter-clear"
                 type="button"
                 disabled="@(_isProcessing || !_filtro.HasAny)"
                 @onclick="ClearFiltersAsync">Limpar filtros</button>
