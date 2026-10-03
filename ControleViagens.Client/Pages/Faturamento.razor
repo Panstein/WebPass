@@ -37,6 +37,48 @@
         </div>
     </header>
 
+    <div class="viagem-filters faturamento-filters" role="search" aria-label="Filtros do faturamento">
+        <div class="viagem-filter">
+            <label class="passenger-field-label" for="faturamento-data-inicial">Data inicial</label>
+            <input id="faturamento-data-inicial"
+                   class="passenger-name-input passenger-create-input"
+                   type="date"
+                   disabled="@_isProcessing"
+                   @bind="_filtro.DataInicial"
+                   @bind:after="ApplyFiltersAsync" />
+        </div>
+        <div class="viagem-filter">
+            <label class="passenger-field-label" for="faturamento-data-final">Data final</label>
+            <input id="faturamento-data-final"
+                   class="passenger-name-input passenger-create-input"
+                   type="date"
+                   disabled="@_isProcessing"
+                   @bind="_filtro.DataFinal"
+                   @bind:after="ApplyFiltersAsync" />
+        </div>
+        <div class="viagem-filter viagem-filter-wide">
+            <label class="passenger-field-label" for="faturamento-passageiro">Passageiro</label>
+            <LookupField TItem="PassageiroOption"
+                         Id="faturamento-passageiro"
+                         Placeholder="Todos os passageiros"
+                         Search="SearchPassageirosAsync"
+                         ItemText="passageiro => passageiro.Nome"
+                         ItemDetail="FormatPassageiroCode"
+                         Disabled="_isProcessing"
+                         @bind-Selected="_filtro.Passageiro"
+                         @bind-Selected:after="ApplyFiltersAsync" />
+        </div>
+        <button class="passenger-cancel-button viagem-filter-clear"
+                type="button"
+                disabled="@(_isProcessing || !_filtro.HasAny)"
+                @onclick="ClearFiltersAsync">Limpar filtros</button>
+    </div>
+
+    @if (_filterError is not null)
+    {
+        <div class="passenger-feedback passenger-feedback-error" role="alert">@_filterError</div>
+    }
+
     @if (_statusMessage is not null)
     {
         <div class="passenger-feedback passenger-feedback-success" role="status">@_statusMessage</div>
@@ -57,7 +99,9 @@
     }
     else if (_viagens.Count == 0)
     {
-        <div class="passenger-feedback">Nenhuma viagem cadastrada.</div>
+        <div class="passenger-feedback">
+            @(_filtro.HasAny ? "Nenhuma viagem encontrada para os filtros informados." : "Nenhuma viagem cadastrada.")
+        </div>
     }
     else
     {
@@ -118,6 +162,8 @@
     private static readonly CultureInfo BrazilianCulture = CultureInfo.GetCultureInfo("pt-BR");
     private List<ViagemRow> _viagens = [];
     private readonly HashSet<decimal> _selecionadas = [];
+    private FaturamentoFiltro _filtro = new();
+    private string? _filterError;
     private string? _loadError;
     private string? _actionError;
     private string? _statusMessage;
@@ -138,7 +184,8 @@
         _loadError = null;
         try
         {
-            _viagens = await Http.GetFromJsonAsync<List<ViagemRow>>("api/viagens") ?? [];
+            _viagens = await Http.GetFromJsonAsync<List<ViagemRow>>(BuildViagensUrl()) ?? [];
+            // Clearing on every reload also drops marks hidden by a filter, so nothing invisible gets billed.
             _selecionadas.Clear();
         }
         catch (HttpRequestException)
@@ -150,6 +197,51 @@
             _isLoading = false;
         }
     }
+
+    private string BuildViagensUrl()
+    {
+        var query = new List<string>();
+        if (_filtro.DataInicial is { } dataInicial)
+        {
+            query.Add($"dataInicial={dataInicial:yyyy-MM-dd}");
+        }
+
+        if (_filtro.DataFinal is { } dataFinal)
+        {
+            query.Add($"dataFinal={dataFinal:yyyy-MM-dd}");
+        }
+
+        if (_filtro.Passageiro is { } passageiro)
+        {
+            query.Add($"idPassageiro={FormatId(passageiro.IdPass)}");
+        }
+
+        return query.Count == 0 ? "api/viagens" : $"api/viagens?{string.Join("&", query)}";
+    }
+
+    private async Task ApplyFiltersAsync()
+    {
+        _statusMessage = null;
+        _actionError = null;
+        if (_filtro.DataInicial > _filtro.DataFinal)
+        {
+            _filterError = "A data inicial não pode ser posterior à data final.";
+            return;
+        }
+
+        _filterError = null;
+        await LoadViagensAsync();
+    }
+
+    private async Task ClearFiltersAsync()
+    {
+        _filtro = new FaturamentoFiltro();
+        await ApplyFiltersAsync();
+    }
+
+    private async Task<IReadOnlyList<PassageiroOption>> SearchPassageirosAsync(string nome, CancellationToken cancellationToken) =>
+        await Http.GetFromJsonAsync<List<PassageiroOption>>(
+            $"api/passageiros/busca?nome={Uri.EscapeDataString(nome)}", cancellationToken) ?? [];
 
     private async Task FaturarAsync()
     {
@@ -260,6 +352,7 @@
     private static string FormatId(decimal id) => id.ToString("0", CultureInfo.InvariantCulture);
     private static string FormatDate(DateOnly data) => data.ToString("dd/MM/yyyy", BrazilianCulture);
     private static string FormatValue(decimal valor) => valor.ToString("C2", BrazilianCulture);
+    private static string FormatPassageiroCode(PassageiroOption passageiro) => $"Cód. {FormatId(passageiro.IdPass)}";
 
     private sealed record ViagemRow(
         decimal IdViagem,
@@ -276,5 +369,14 @@
     private sealed record FaturamentoRequest(decimal[] IdsViagem);
     private sealed record FaturamentoResult(decimal GrupoPagamento, int Quantidade);
     private sealed record CancelamentoResult(int Quantidade);
+    private sealed record PassageiroOption(decimal IdPass, string Nome);
+
+    private sealed class FaturamentoFiltro
+    {
+        public DateOnly? DataInicial { get; set; }
+        public DateOnly? DataFinal { get; set; }
+        public PassageiroOption? Passageiro { get; set; }
+        public bool HasAny => DataInicial is not null || DataFinal is not null || Passageiro is not null;
+    }
     private sealed class FaturamentoException(string message) : Exception(message);
 }

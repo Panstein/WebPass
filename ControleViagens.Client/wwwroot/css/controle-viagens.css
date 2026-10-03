@@ -143,6 +143,9 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--coral); outline
 .viagem-filter .passenger-field-label { margin-bottom: 5px; font-size: 11px; }
 .viagem-filter-clear { min-height: 40px; white-space: nowrap; }
 .viagem-filter-clear:disabled { cursor: default; opacity: .5; }
+@media (min-width: 1181px) {
+    .faturamento-filters { grid-template-columns: 150px 150px minmax(0, 1fr) auto; }
+}
 .faturamento-panel .module-panel-header { flex-wrap: wrap; gap: 10px; }
 .faturamento-panel .passenger-header-tools { flex-wrap: wrap; justify-content: flex-end; }
 .faturamento-button { min-height: 34px; padding: 0 12px; border: 1px solid; border-radius: 3px; color: #fff; cursor: pointer; font: 600 12px "DM Sans", sans-serif; white-space: nowrap; transition: background .15s ease; }
