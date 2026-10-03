@@ -38,7 +38,7 @@
         </div>
         <div class="viagem-filter">
             <label class="passenger-field-label" for="dashboard-mes">Mês em destaque</label>
-            <select id="dashboard-mes" class="passenger-name-input passenger-create-input" @bind="_mes">
+            <select id="dashboard-mes" class="passenger-name-input passenger-create-input" @bind="_mes" @bind:after="OnMesSelecionadoAsync">
                 @for (var mes = 1; mes <= 12; mes++)
                 {
                     <option value="@mes">@NomesMeses[mes - 1]</option>
@@ -104,6 +104,90 @@
             @RenderChart("Faturamento x meta", mes => mes.Faturamento, mes => mes.MetaFaturamento, FormatValue)
         </div>
 
+        <section class="dashboard-pax" aria-labelledby="dashboard-pax-title">
+            <header class="dashboard-pax-header">
+                <div>
+                    <strong id="dashboard-pax-title">Faturamento por passageiro</strong>
+                    <span>@(_passageirosNoAno ? $"Ano de {_ano}" : $"{NomesMeses[_mes - 1]} de {_ano}")</span>
+                </div>
+                <div class="dashboard-segmented" role="group" aria-label="Período do faturamento por passageiro">
+                    <button type="button" class="@(!_passageirosNoAno ? "is-active" : null)" aria-pressed="@(!_passageirosNoAno)"
+                            @onclick="() => SetEscopoPassageirosAsync(false)">Mês</button>
+                    <button type="button" class="@(_passageirosNoAno ? "is-active" : null)" aria-pressed="@_passageirosNoAno"
+                            @onclick="() => SetEscopoPassageirosAsync(true)">Ano</button>
+                </div>
+            </header>
+
+            @if (_passageirosLoading && _passageiros.Count == 0)
+            {
+                <div class="passenger-feedback dashboard-pax-feedback" role="status">Carregando passageiros...</div>
+            }
+            else if (_passageirosError is not null)
+            {
+                <div class="passenger-feedback passenger-feedback-error" role="alert">@_passageirosError</div>
+            }
+            else if (_passageiros.Count == 0)
+            {
+                <div class="passenger-feedback dashboard-pax-feedback">Nenhuma viagem no período.</div>
+            }
+            else
+            {
+                var totalPeriodo = _passageiros.Sum(passageiro => passageiro.Faturamento);
+                var maiorValor = _passageiros.Max(passageiro => passageiro.Faturamento);
+                var visiveis = _mostrarTodosPassageiros ? _passageiros : _passageiros.Take(PassageirosVisiveis).ToList();
+
+                <div class="dashboard-pax-summary @(_passageirosLoading ? "is-refreshing" : null)">
+                    <span><strong>@_passageiros.Count</strong> @(_passageiros.Count == 1 ? "passageiro" : "passageiros") · <strong>@_passageiros.Sum(passageiro => passageiro.Viagens)</strong> viagens · total <strong>@FormatValue(totalPeriodo)</strong></span>
+                    <span class="dashboard-legend" aria-hidden="true">
+                        <span><i class="dashboard-legend-bar"></i>Pago</span>
+                        <span><i class="dashboard-legend-bar is-pending"></i>A receber</span>
+                    </span>
+                </div>
+                <ol class="dashboard-pax-list @(_passageirosLoading ? "is-refreshing" : null)">
+                    @foreach (var (passageiro, posicao) in visiveis.Select((passageiro, indice) => (passageiro, indice + 1)))
+                    {
+                        var pendente = passageiro.Faturamento - passageiro.FaturamentoPago;
+                        <li @key="passageiro.IdPassageiro" class="dashboard-pax-row">
+                            <span class="dashboard-pax-rank" aria-hidden="true">@posicao</span>
+                            <span class="dashboard-pax-name">
+                                <strong>@passageiro.Nome</strong>
+                                <small>@passageiro.Viagens @(passageiro.Viagens == 1 ? "viagem" : "viagens")</small>
+                            </span>
+                            <span class="dashboard-pax-track" aria-hidden="true">
+                                <span class="dashboard-pax-fill" style="width: calc(100% * @Fraction(passageiro.Faturamento, maiorValor))">
+                                    @if (passageiro.FaturamentoPago > 0)
+                                    {
+                                        <span class="dashboard-pax-paid" style="flex-grow: @passageiro.FaturamentoPago.ToString(CultureInfo.InvariantCulture)"></span>
+                                    }
+                                    @if (pendente > 0)
+                                    {
+                                        <span class="dashboard-pax-pending" style="flex-grow: @pendente.ToString(CultureInfo.InvariantCulture)"></span>
+                                    }
+                                </span>
+                            </span>
+                            <span class="dashboard-pax-value">
+                                <strong>@FormatValue(passageiro.Faturamento)</strong>
+                                <small>@(totalPeriodo > 0 ? (passageiro.Faturamento / totalPeriodo).ToString("P0", BrazilianCulture) : "—") do total</small>
+                            </span>
+                            <span class="dashboard-pax-split">
+                                Pago @FormatValue(passageiro.FaturamentoPago)<br />
+                                A receber @FormatValue(pendente)
+                            </span>
+                        </li>
+                    }
+                </ol>
+                @if (_passageiros.Count > PassageirosVisiveis)
+                {
+                    <div class="dashboard-pax-more">
+                        <button class="passenger-cancel-button button-3d button-3d-light" type="button"
+                                @onclick="() => _mostrarTodosPassageiros = !_mostrarTodosPassageiros">
+                            @(_mostrarTodosPassageiros ? $"Mostrar só os {PassageirosVisiveis} maiores" : $"Mostrar todos ({_passageiros.Count})")
+                        </button>
+                    </div>
+                }
+            }
+        </section>
+
         <div class="dashboard-table-title">
             <strong>Metas por mês de @_ano</strong>
             <span>Use o lápis para definir ou alterar as metas do mês.</span>
@@ -128,7 +212,7 @@
                         var editando = _edicao?.Mes == mes.Mes;
                         <tr @key="mes.Mes" class="@(mes.Mes == _mes ? "dashboard-row-selected" : null)">
                             <th scope="row" class="dashboard-month-cell">
-                                <button class="dashboard-month-link" type="button" @onclick="() => _mes = mes.Mes">@NomesMeses[mes.Mes - 1]</button>
+                                <button class="dashboard-month-link" type="button" @onclick="() => SelectMesAsync(mes.Mes)">@NomesMeses[mes.Mes - 1]</button>
                             </th>
                             <td class="trecho-value">@mes.Viagens</td>
                             @if (editando)
@@ -213,8 +297,15 @@
     private string? _statusMessage;
     private bool _isLoading = true;
     private bool _isSaving;
+    private const int PassageirosVisiveis = 10;
+    private List<PassageiroRow> _passageiros = [];
+    private bool _passageirosNoAno;
+    private bool _passageirosLoading = true;
+    private bool _mostrarTodosPassageiros;
+    private string? _passageirosError;
+    private int _passageirosRequisicao;
 
-    protected override Task OnInitializedAsync() => LoadAsync();
+    protected override Task OnInitializedAsync() => Task.WhenAll(LoadAsync(), LoadPassageirosAsync());
 
     private async Task LoadAsync()
     {
@@ -244,7 +335,64 @@
         _ano = Math.Clamp(_ano + delta, AnoMinimo, AnoMaximo);
         _statusMessage = null;
         _actionError = null;
-        await LoadAsync();
+        await Task.WhenAll(LoadAsync(), LoadPassageirosAsync());
+    }
+
+    private async Task SelectMesAsync(int mes)
+    {
+        if (_mes == mes)
+        {
+            return;
+        }
+
+        _mes = mes;
+        await OnMesSelecionadoAsync();
+    }
+
+    /// <summary>The yearly ranking does not depend on the highlighted month.</summary>
+    private Task OnMesSelecionadoAsync() => _passageirosNoAno ? Task.CompletedTask : LoadPassageirosAsync();
+
+    private async Task SetEscopoPassageirosAsync(bool noAno)
+    {
+        if (_passageirosNoAno == noAno)
+        {
+            return;
+        }
+
+        _passageirosNoAno = noAno;
+        await LoadPassageirosAsync();
+    }
+
+    private async Task LoadPassageirosAsync()
+    {
+        // Month clicks can overlap; only the latest request may fill the ranking.
+        var requisicao = ++_passageirosRequisicao;
+        _passageirosLoading = true;
+        _passageirosError = null;
+        _mostrarTodosPassageiros = false;
+        var url = _passageirosNoAno ? $"api/dashboard/{_ano}/passageiros" : $"api/dashboard/{_ano}/passageiros?mes={_mes}";
+        try
+        {
+            var passageiros = await Http.GetFromJsonAsync<List<PassageiroRow>>(url) ?? [];
+            if (requisicao == _passageirosRequisicao)
+            {
+                _passageiros = passageiros;
+            }
+        }
+        catch (HttpRequestException)
+        {
+            if (requisicao == _passageirosRequisicao)
+            {
+                _passageirosError = "Não foi possível carregar o faturamento por passageiro.";
+            }
+        }
+        finally
+        {
+            if (requisicao == _passageirosRequisicao)
+            {
+                _passageirosLoading = false;
+            }
+        }
     }
 
     private void StartEdit(MesRow mes)
@@ -281,7 +429,7 @@
             }
 
             _statusMessage = $"Metas de {NomesMeses[edicao.Mes - 1]}/{_ano} gravadas.";
-            _mes = edicao.Mes;
+            await SelectMesAsync(edicao.Mes);
             await LoadAsync();
         }
         catch (HttpRequestException)
@@ -392,7 +540,7 @@
                         <button type="button"
                                 class="dashboard-bar-slot @(mes.Mes == _mes ? "is-selected" : null)"
                                 aria-label="@dica"
-                                @onclick="() => _mes = mes.Mes">
+                                @onclick="() => SelectMesAsync(mes.Mes)">
                             <span class="dashboard-bar" style="height: calc((100% - 22px) * @Fraction(valor, maximo))"></span>
                             @if (alvo is { } valorMeta)
                             {
@@ -449,6 +597,13 @@
         decimal FaturamentoPago,
         int? MetaViagens,
         decimal? MetaFaturamento);
+
+    private sealed record PassageiroRow(
+        decimal IdPassageiro,
+        string Nome,
+        int Viagens,
+        decimal Faturamento,
+        decimal FaturamentoPago);
 
     private sealed record MetaRequest(int MetaViagens, decimal MetaFaturamento);
 

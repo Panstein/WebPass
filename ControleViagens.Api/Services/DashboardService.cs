@@ -41,6 +41,37 @@ public sealed class DashboardService(NpgsqlDataSource dataSource) : IDashboardSe
         return meses;
     }
 
+    /// <summary>Passengers with trips in the year (or in one month of it), highest billing first.</summary>
+    public async Task<IReadOnlyList<DashboardPassageiroResponse>> GetPassageirosAsync(int ano, int? mes, CancellationToken cancellationToken)
+    {
+        await using var command = dataSource.CreateCommand(
+            "SELECT p.id_pass, p.nome, COUNT(*)::int, SUM(t.valor::numeric), " +
+            "COALESCE(SUM(t.valor::numeric) FILTER (WHERE v.pago), 0) " +
+            "FROM public.viagem v " +
+            "JOIN public.passageiros p ON p.id_pass = v.id_passageiro " +
+            "JOIN public.trechos t ON t.id_trecho = v.id_trecho " +
+            "WHERE v.data_viagem >= @inicio AND v.data_viagem < @fim " +
+            "GROUP BY p.id_pass, p.nome " +
+            "ORDER BY 4 DESC, p.nome");
+        var inicio = new DateOnly(ano, mes ?? 1, 1);
+        command.Parameters.AddWithValue("inicio", inicio);
+        command.Parameters.AddWithValue("fim", mes is null ? inicio.AddYears(1) : inicio.AddMonths(1));
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        var passageiros = new List<DashboardPassageiroResponse>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            passageiros.Add(new DashboardPassageiroResponse(
+                reader.GetDecimal(0),
+                reader.GetString(1),
+                reader.GetInt32(2),
+                reader.GetDecimal(3),
+                reader.GetDecimal(4)));
+        }
+
+        return passageiros;
+    }
+
     public async Task SaveMetaAsync(int ano, int mes, UpdateMetaRequest request, CancellationToken cancellationToken)
     {
         await using var command = dataSource.CreateCommand(

@@ -41,6 +41,36 @@ public static class DashboardEndpoints
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
 
+        endpoints.MapGet("/api/dashboard/{ano:int}/passageiros", async Task<Results<Ok<IReadOnlyList<DashboardPassageiroResponse>>, ProblemHttpResult>> (
+            int ano,
+            int? mes,
+            IDashboardService service,
+            ILoggerFactory loggerFactory,
+            CancellationToken cancellationToken) =>
+        {
+            if (ano is < AnoMinimo or > AnoMaximo || mes is < 1 or > 12)
+            {
+                return AnoInvalido();
+            }
+
+            try
+            {
+                return TypedResults.Ok(await service.GetPassageirosAsync(ano, mes, cancellationToken));
+            }
+            catch (NpgsqlException exception)
+            {
+                loggerFactory.CreateLogger("Dashboard")
+                    .LogError(exception, "Falha ao consultar o faturamento por passageiro de {Ano}.", ano);
+                return TypedResults.Problem(
+                    title: "Não foi possível consultar o faturamento por passageiro.",
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
+            }
+        })
+        .WithName("GetDashboardPassageiros")
+        .WithSummary("Faturamento por passageiro no ano ou, com mes, no mês; maior faturamento primeiro.")
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
+
         endpoints.MapPut("/api/metas/{ano:int}/{mes:int}", async Task<Results<NoContent, ProblemHttpResult>> (
             int ano,
             int mes,
