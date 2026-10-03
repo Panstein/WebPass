@@ -75,24 +75,24 @@
                     @foreach (var trecho in _trechos)
                     {
                         <tr @key="trecho.IdTrecho">
-                            <td class="passenger-id" data-label="ID trecho">@FormatId(trecho.IdTrecho)</td>
+                            <td class="passenger-id">@FormatId(trecho.IdTrecho)</td>
                             @if (_editingId == trecho.IdTrecho)
                             {
-                                <td data-label="Origem">
+                                <td>
                                     <input class="passenger-name-input trecho-cell-input"
                                            maxlength="20"
                                            aria-label="Origem do trecho"
                                            @bind="_editedOrigem"
                                            disabled="@_isSaving" />
                                 </td>
-                                <td data-label="Destino">
+                                <td>
                                     <input class="passenger-name-input trecho-cell-input"
                                            maxlength="20"
                                            aria-label="Destino do trecho"
                                            @bind="_editedDestino"
                                            disabled="@_isSaving" />
                                 </td>
-                                <td data-label="Valor">
+                                <td>
                                     <input class="passenger-name-input trecho-cell-input trecho-value-input"
                                            type="number"
                                            min="0"
@@ -105,11 +105,11 @@
                             }
                             else
                             {
-                                <td data-label="Origem">@trecho.Origem</td>
-                                <td data-label="Destino">@trecho.Destino</td>
-                                <td class="trecho-value" data-label="Valor">@FormatValue(trecho.Valor)</td>
+                                <td>@trecho.Origem</td>
+                                <td>@trecho.Destino</td>
+                                <td class="trecho-value">@FormatValue(trecho.Valor)</td>
                             }
-                            <td class="card-actions">
+                            <td>
                                 <div class="passenger-actions">
                                     @if (_editingId == trecho.IdTrecho)
                                     {

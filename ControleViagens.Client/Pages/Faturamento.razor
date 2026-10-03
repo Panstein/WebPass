@@ -148,7 +148,7 @@
                     @foreach (var viagem in _viagens)
                     {
                         <tr @key="viagem.IdViagem" class="@(viagem.Pago ? "faturamento-pago" : "faturamento-pendente")">
-                            <td class="faturamento-check" data-label="Selecionar">
+                            <td class="faturamento-check">
                                 <input type="checkbox"
                                        title="@(viagem.Pago ? "Marcar para cancelar o faturamento" : "Marcar para faturar")"
                                        aria-label="Marcar viagem @FormatId(viagem.IdViagem)"
@@ -156,13 +156,13 @@
                                        disabled="@_isProcessing"
                                        @onchange="() => Toggle(viagem)" />
                             </td>
-                            <td class="passenger-id" data-label="ID viagem">@FormatId(viagem.IdViagem)</td>
-                            <td class="viagem-date" data-label="Data">@FormatDate(viagem.DataViagem)</td>
-                            <td class="card-title">@viagem.NomePassageiro</td>
-                            <td data-label="Trecho">@viagem.Origem<span class="viagem-route-arrow" aria-label="para">→</span>@viagem.Destino</td>
-                            <td class="trecho-value" data-label="Valor">@FormatValue(viagem.Valor)</td>
-                            <td class="faturamento-status" data-label="Pago">@(viagem.Pago ? "Sim" : "Não")</td>
-                            <td class="passenger-id" data-label="Grupo">@(viagem.GrupoPagamento is { } grupo ? FormatId(grupo) : "—")</td>
+                            <td class="passenger-id">@FormatId(viagem.IdViagem)</td>
+                            <td class="viagem-date">@FormatDate(viagem.DataViagem)</td>
+                            <td>@viagem.NomePassageiro</td>
+                            <td>@viagem.Origem<span class="viagem-route-arrow" aria-label="para">→</span>@viagem.Destino</td>
+                            <td class="trecho-value">@FormatValue(viagem.Valor)</td>
+                            <td class="faturamento-status">@(viagem.Pago ? "Sim" : "Não")</td>
+                            <td class="passenger-id">@(viagem.GrupoPagamento is { } grupo ? FormatId(grupo) : "—")</td>
                         </tr>
                     }
                 </tbody>

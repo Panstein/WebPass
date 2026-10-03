@@ -128,15 +128,15 @@
                     @foreach (var viagem in _viagens)
                     {
                         <tr @key="viagem.IdViagem">
-                            <td class="passenger-id" data-label="ID viagem">@FormatId(viagem.IdViagem)</td>
-                            <td class="viagem-date" data-label="Data">@FormatDate(viagem.DataViagem)</td>
-                            <td class="card-title">@viagem.NomePassageiro</td>
-                            <td data-label="Trecho">@viagem.Origem<span class="viagem-route-arrow" aria-label="para">→</span>@viagem.Destino</td>
-                            <td class="trecho-value" data-label="Valor">@FormatValue(viagem.Valor)</td>
-                            <td data-label="Pago">
+                            <td class="passenger-id">@FormatId(viagem.IdViagem)</td>
+                            <td class="viagem-date">@FormatDate(viagem.DataViagem)</td>
+                            <td>@viagem.NomePassageiro</td>
+                            <td>@viagem.Origem<span class="viagem-route-arrow" aria-label="para">→</span>@viagem.Destino</td>
+                            <td class="trecho-value">@FormatValue(viagem.Valor)</td>
+                            <td>
                                 <span class="viagem-pago @(viagem.Pago ? "is-pago" : null)">@(viagem.Pago ? "Sim" : "Não")</span>
                             </td>
-                            <td class="card-actions">
+                            <td>
                                 <div class="passenger-actions">
                                     <button class="passenger-action button-3d button-3d-light"
                                             type="button"
