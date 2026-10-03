@@ -17,6 +17,8 @@ RUN dotnet publish ControleViagens.Api/ControleViagens.Api.csproj -c Release -o 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 COPY --from=build /out/api .
-ENV ASPNETCORE_ENVIRONMENT=Production
-# Render provides the port in $PORT.
-CMD ASPNETCORE_URLS=http://0.0.0.0:${PORT:-8080} exec dotnet ControleViagens.Api.dll
+ENV ASPNETCORE_ENVIRONMENT=Production \
+    PORT=10000
+EXPOSE 10000
+# Render provides the port in $PORT (default 10000).
+CMD ["sh", "-c", "export ASPNETCORE_URLS=http://0.0.0.0:${PORT}; exec dotnet ControleViagens.Api.dll"]
