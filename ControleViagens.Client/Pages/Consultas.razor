@@ -1,7 +1,461 @@
 @page "/consultas"
+@using System.Globalization
+@inject HttpClient Http
+@inject IJSRuntime JavaScript
 
 <PageTitle>Consultas | Controle de Viagens</PageTitle>
-<ModuleLanding Title="Consultas"
-               Description="Pesquisas e informações consolidadas da operação."
-               SectionLabel="ANÁLISE"
-               PanelTitle="Consultas disponíveis" />
+
+<section class="page-heading">
+    <img class="home-brand-logo page-brand-logo" src="images/keia-panstein.svg" alt="Keia Panstein" />
+    <span class="eyebrow">ANÁLISE</span>
+    <h1>Consultas</h1>
+    <p>Viagens e faturamento de cada mês comparados às metas.</p>
+</section>
+
+<section class="module-panel viagem-panel dashboard-panel" aria-labelledby="dashboard-title">
+    <header class="module-panel-header">
+        <strong id="dashboard-title">Dashboard de metas</strong>
+        <div class="passenger-header-tools">
+            <a class="passenger-home-button button-3d button-3d-light" href="/" aria-label="Voltar à tela inicial" title="Voltar à tela inicial">
+                <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m9 5-5 5 5 5M4 10h12" /></svg>
+                <span class="passenger-home-full">Voltar à tela inicial</span>
+                <span class="passenger-home-short">Início</span>
+            </a>
+        </div>
+    </header>
+
+    <div class="dashboard-filters" role="search" aria-label="Período do dashboard">
+        <div class="dashboard-year" role="group" aria-label="Ano">
+            <button class="passenger-action button-3d button-3d-light" type="button" title="Ano anterior" aria-label="Ano anterior"
+                    disabled="@(_isLoading || _ano <= AnoMinimo)" @onclick="() => ChangeAnoAsync(-1)">
+                <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m12 5-5 5 5 5" /></svg>
+            </button>
+            <strong aria-live="polite">@_ano</strong>
+            <button class="passenger-action button-3d button-3d-light" type="button" title="Próximo ano" aria-label="Próximo ano"
+                    disabled="@(_isLoading || _ano >= AnoMaximo)" @onclick="() => ChangeAnoAsync(1)">
+                <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m8 5 5 5-5 5" /></svg>
+            </button>
+        </div>
+        <div class="viagem-filter">
+            <label class="passenger-field-label" for="dashboard-mes">Mês em destaque</label>
+            <select id="dashboard-mes" class="passenger-name-input passenger-create-input" @bind="_mes">
+                @for (var mes = 1; mes <= 12; mes++)
+                {
+                    <option value="@mes">@NomesMeses[mes - 1]</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    @if (_statusMessage is not null)
+    {
+        <div class="passenger-feedback passenger-feedback-success" role="status">@_statusMessage</div>
+    }
+
+    @if (_actionError is not null)
+    {
+        <div class="passenger-feedback passenger-feedback-error" role="alert">@_actionError</div>
+    }
+
+    @if (_isLoading)
+    {
+        <div class="passenger-feedback" role="status">Carregando dashboard...</div>
+    }
+    else if (_loadError is not null)
+    {
+        <div class="passenger-feedback passenger-feedback-error" role="alert">@_loadError</div>
+    }
+    else
+    {
+        var atual = _meses[_mes - 1];
+        var viagensAno = _meses.Sum(mes => mes.Viagens);
+        var faturamentoAno = _meses.Sum(mes => mes.Faturamento);
+        var metaViagensAno = SomaMetas(_meses.Select(mes => (decimal?)mes.MetaViagens));
+        var metaFaturamentoAno = SomaMetas(_meses.Select(mes => mes.MetaFaturamento));
+
+        <div class="dashboard-kpis">
+            <article class="dashboard-kpi" aria-label="Viagens de @NomesMeses[_mes - 1] de @_ano">
+                <span class="dashboard-kpi-label">Viagens · @NomesMeses[_mes - 1]</span>
+                <div class="dashboard-kpi-value">
+                    <strong>@atual.Viagens</strong>
+                    <span>@(atual.MetaViagens is { } metaViagens ? $"de {metaViagens} na meta" : "sem meta")</span>
+                </div>
+                @RenderProgress(atual.Viagens, atual.MetaViagens)
+                <p class="dashboard-kpi-foot">
+                    Ano: <strong>@viagensAno</strong>@(metaViagensAno is { } metaViagensTotal ? $" de {metaViagensTotal:0} ({FormatPercent(viagensAno, metaViagensTotal)})" : string.Empty)
+                </p>
+            </article>
+            <article class="dashboard-kpi" aria-label="Faturamento de @NomesMeses[_mes - 1] de @_ano">
+                <span class="dashboard-kpi-label">Faturamento · @NomesMeses[_mes - 1]</span>
+                <div class="dashboard-kpi-value">
+                    <strong>@FormatValue(atual.Faturamento)</strong>
+                    <span>@(atual.MetaFaturamento is { } metaFaturamento ? $"de {FormatValue(metaFaturamento)} na meta" : "sem meta")</span>
+                </div>
+                @RenderProgress(atual.Faturamento, atual.MetaFaturamento)
+                <p class="dashboard-kpi-foot">
+                    Pago <strong>@FormatValue(atual.FaturamentoPago)</strong> · a receber <strong>@FormatValue(atual.Faturamento - atual.FaturamentoPago)</strong><br />
+                    Ano: <strong>@FormatValue(faturamentoAno)</strong>@(metaFaturamentoAno is { } metaFaturamentoTotal ? $" de {FormatValue(metaFaturamentoTotal)} ({FormatPercent(faturamentoAno, metaFaturamentoTotal)})" : string.Empty)
+                </p>
+            </article>
+        </div>
+
+        <div class="dashboard-charts">
+            @RenderChart("Viagens x meta", mes => mes.Viagens, mes => mes.MetaViagens, valor => valor.ToString("0", BrazilianCulture))
+            @RenderChart("Faturamento x meta", mes => mes.Faturamento, mes => mes.MetaFaturamento, FormatValue)
+        </div>
+
+        <div class="dashboard-table-title">
+            <strong>Metas por mês de @_ano</strong>
+            <span>Use o lápis para definir ou alterar as metas do mês.</span>
+        </div>
+        <div class="passenger-table-wrap">
+            <table class="passenger-table dashboard-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Mês</th>
+                        <th scope="col">Viagens</th>
+                        <th scope="col">Meta viagens</th>
+                        <th scope="col">% viagens</th>
+                        <th scope="col">Faturamento</th>
+                        <th scope="col">Meta faturamento</th>
+                        <th scope="col">% faturamento</th>
+                        <th scope="col"><span class="sr-only">Ações</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var mes in _meses)
+                    {
+                        var editando = _edicao?.Mes == mes.Mes;
+                        <tr @key="mes.Mes" class="@(mes.Mes == _mes ? "dashboard-row-selected" : null)">
+                            <th scope="row" class="dashboard-month-cell">
+                                <button class="dashboard-month-link" type="button" @onclick="() => _mes = mes.Mes">@NomesMeses[mes.Mes - 1]</button>
+                            </th>
+                            <td class="trecho-value">@mes.Viagens</td>
+                            @if (editando)
+                            {
+                                <td>
+                                    <input class="passenger-name-input trecho-cell-input" type="number" min="0" step="1"
+                                           aria-label="Meta de viagens de @NomesMeses[mes.Mes - 1]"
+                                           disabled="@_isSaving" @bind="_edicao!.MetaViagens" />
+                                </td>
+                            }
+                            else
+                            {
+                                <td class="trecho-value">@(mes.MetaViagens?.ToString(BrazilianCulture) ?? "—")</td>
+                            }
+                            <td>@RenderPercentChip(mes.Viagens, mes.MetaViagens)</td>
+                            <td class="trecho-value">@FormatValue(mes.Faturamento)</td>
+                            @if (editando)
+                            {
+                                <td>
+                                    <input class="passenger-name-input trecho-cell-input trecho-value-input" type="number" min="0" step="0.01"
+                                           aria-label="Meta de faturamento de @NomesMeses[mes.Mes - 1]"
+                                           disabled="@_isSaving" @bind="_edicao!.MetaFaturamento" />
+                                </td>
+                            }
+                            else
+                            {
+                                <td class="trecho-value">@(mes.MetaFaturamento is { } meta ? FormatValue(meta) : "—")</td>
+                            }
+                            <td>@RenderPercentChip(mes.Faturamento, mes.MetaFaturamento)</td>
+                            <td>
+                                <div class="passenger-actions">
+                                    @if (editando)
+                                    {
+                                        <button class="passenger-action passenger-action-save button-3d button-3d-light" type="button"
+                                                title="Salvar metas" aria-label="Salvar metas de @NomesMeses[mes.Mes - 1]"
+                                                disabled="@_isSaving" @onclick="SaveMetaAsync">
+                                            <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m4 10 4 4 8-8" /></svg>
+                                        </button>
+                                        <button class="passenger-action button-3d button-3d-light" type="button"
+                                                title="Cancelar edição" aria-label="Cancelar edição"
+                                                disabled="@_isSaving" @onclick="() => _edicao = null">
+                                            <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m5 5 10 10M15 5 5 15" /></svg>
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button class="passenger-action button-3d button-3d-light" type="button"
+                                                title="Editar metas" aria-label="Editar metas de @NomesMeses[mes.Mes - 1]"
+                                                disabled="@(_isSaving || _edicao is not null)" @onclick="() => StartEdit(mes)">
+                                            <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m13 4 3 3M4 16l3.5-.7L16 6a2.1 2.1 0 0 0-3-3l-8.5 8.7L4 16z" /></svg>
+                                        </button>
+                                        <button class="passenger-action passenger-action-delete button-3d button-3d-light" type="button"
+                                                title="Remover metas" aria-label="Remover metas de @NomesMeses[mes.Mes - 1]"
+                                                disabled="@(_isSaving || _edicao is not null || mes.MetaViagens is null)"
+                                                @onclick="() => DeleteMetaAsync(mes)">
+                                            <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M4 6h12M8 6V4h4v2m3 0-.7 10H5.7L5 6m3 3v4m4-4v4" /></svg>
+                                        </button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@code {
+    private const int AnoMinimo = 2000;
+    private const int AnoMaximo = 2100;
+    private static readonly CultureInfo BrazilianCulture = CultureInfo.GetCultureInfo("pt-BR");
+    private static readonly string[] NomesMeses =
+        ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
+    private List<MesRow> _meses = [];
+    private int _ano = DateTime.Today.Year;
+    private int _mes = DateTime.Today.Month;
+    private MetaEdicao? _edicao;
+    private string? _loadError;
+    private string? _actionError;
+    private string? _statusMessage;
+    private bool _isLoading = true;
+    private bool _isSaving;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+        _edicao = null;
+        try
+        {
+            _meses = await Http.GetFromJsonAsync<List<MesRow>>($"api/dashboard/{_ano}") ?? [];
+            if (_meses.Count != 12)
+            {
+                _loadError = "O servidor retornou um dashboard incompleto.";
+            }
+        }
+        catch (HttpRequestException)
+        {
+            _loadError = "Não foi possível carregar o dashboard. Verifique a conexão com o servidor.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task ChangeAnoAsync(int delta)
+    {
+        _ano = Math.Clamp(_ano + delta, AnoMinimo, AnoMaximo);
+        _statusMessage = null;
+        _actionError = null;
+        await LoadAsync();
+    }
+
+    private void StartEdit(MesRow mes)
+    {
+        _statusMessage = null;
+        _actionError = null;
+        _edicao = new MetaEdicao
+        {
+            Mes = mes.Mes,
+            MetaViagens = mes.MetaViagens,
+            MetaFaturamento = mes.MetaFaturamento
+        };
+    }
+
+    private async Task SaveMetaAsync()
+    {
+        if (_edicao is not { MetaViagens: >= 0, MetaFaturamento: >= 0 } edicao)
+        {
+            _actionError = "Informe as duas metas com valores iguais ou maiores que zero.";
+            return;
+        }
+
+        _isSaving = true;
+        _statusMessage = null;
+        _actionError = null;
+        try
+        {
+            using var response = await Http.PutAsJsonAsync($"api/metas/{_ano}/{edicao.Mes}",
+                new MetaRequest(edicao.MetaViagens.Value, Math.Round(edicao.MetaFaturamento.Value, 2)));
+            if (!response.IsSuccessStatusCode)
+            {
+                _actionError = "Não foi possível gravar a meta.";
+                return;
+            }
+
+            _statusMessage = $"Metas de {NomesMeses[edicao.Mes - 1]}/{_ano} gravadas.";
+            _mes = edicao.Mes;
+            await LoadAsync();
+        }
+        catch (HttpRequestException)
+        {
+            _actionError = "Não foi possível gravar a meta. Verifique a conexão com o servidor.";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task DeleteMetaAsync(MesRow mes)
+    {
+        if (!await JavaScript.InvokeAsync<bool>("confirm", $"Remover as metas de {NomesMeses[mes.Mes - 1]}/{_ano}?"))
+        {
+            return;
+        }
+
+        _isSaving = true;
+        _statusMessage = null;
+        _actionError = null;
+        try
+        {
+            using var response = await Http.DeleteAsync($"api/metas/{_ano}/{mes.Mes}");
+            if (!response.IsSuccessStatusCode && response.StatusCode != System.Net.HttpStatusCode.NotFound)
+            {
+                _actionError = "Não foi possível remover a meta.";
+                return;
+            }
+
+            _statusMessage = $"Metas de {NomesMeses[mes.Mes - 1]}/{_ano} removidas.";
+            await LoadAsync();
+        }
+        catch (HttpRequestException)
+        {
+            _actionError = "Não foi possível remover a meta. Verifique a conexão com o servidor.";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    /// <summary>Progress bar of a KPI tile; the bar caps at 100% and the label carries the real percentage.</summary>
+    private static RenderFragment RenderProgress(decimal realizado, decimal? meta) => __builder =>
+    {
+        if (meta is not > 0)
+        {
+            <div class="dashboard-progress is-empty" aria-hidden="true"><span style="width: 0"></span></div>
+            <span class="dashboard-chip">Defina a meta na tabela abaixo</span>
+            return;
+        }
+
+        var percentual = realizado / meta.Value * 100;
+        var largura = Math.Min(percentual, 100).ToString("0.#", CultureInfo.InvariantCulture);
+        <div class="dashboard-progress @(percentual >= 100 ? "is-done" : null)"
+             role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@Math.Min(percentual, 100).ToString("0", CultureInfo.InvariantCulture)">
+            <span style="width: @largura%"></span>
+        </div>
+        @RenderPercentChip(realizado, meta)
+    };
+
+    private static RenderFragment RenderPercentChip(decimal realizado, decimal? meta) => __builder =>
+    {
+        if (meta is not > 0)
+        {
+            <span class="dashboard-no-goal">—</span>
+            return;
+        }
+
+        var atingiu = realizado >= meta.Value;
+        <span class="dashboard-chip @(atingiu ? "is-good" : "is-below")">
+            <span aria-hidden="true">@(atingiu ? "✓" : "↓")</span>
+            @FormatPercent(realizado, meta.Value) @(atingiu ? "atingida" : "da meta")
+        </span>
+    };
+
+    /// <summary>
+    /// Monthly bar chart: realized as bars, the month's goal as a dark tick over the bar.
+    /// One scale per chart; trips and billing never share an axis.
+    /// </summary>
+    private RenderFragment RenderChart(string titulo, Func<MesRow, decimal> realizado, Func<MesRow, decimal?> meta, Func<decimal, string> formatar) => __builder =>
+    {
+        var maximo = NiceMax(_meses.Max(mes => Math.Max(realizado(mes), meta(mes) ?? 0)));
+        <figure class="dashboard-chart">
+            <figcaption>
+                <strong>@titulo</strong>
+                <span class="dashboard-legend" aria-hidden="true">
+                    <span><i class="dashboard-legend-bar"></i>Realizado</span>
+                    <span><i class="dashboard-legend-goal"></i>Meta</span>
+                </span>
+            </figcaption>
+            <div class="dashboard-plot">
+                <div class="dashboard-grid" aria-hidden="true">
+                    @foreach (var fracao in new[] { 1m, .5m, 0m })
+                    {
+                        <span style="bottom: @((fracao * 100).ToString("0", CultureInfo.InvariantCulture))%"><em>@formatar(maximo * fracao)</em></span>
+                    }
+                </div>
+                <div class="dashboard-bars">
+                    @foreach (var mes in _meses)
+                    {
+                        var valor = realizado(mes);
+                        var alvo = meta(mes);
+                        var nome = NomesMeses[mes.Mes - 1];
+                        var dica = $"{nome}: {formatar(valor)}" + (alvo is { } a ? $" · meta {formatar(a)}" + (a > 0 ? $" ({FormatPercent(valor, a)})" : string.Empty) : " · sem meta");
+                        <button type="button"
+                                class="dashboard-bar-slot @(mes.Mes == _mes ? "is-selected" : null)"
+                                aria-label="@dica"
+                                @onclick="() => _mes = mes.Mes">
+                            <span class="dashboard-bar" style="height: calc((100% - 22px) * @Fraction(valor, maximo))"></span>
+                            @if (alvo is { } valorMeta)
+                            {
+                                <span class="dashboard-goal" style="bottom: calc(22px + (100% - 22px) * @Fraction(valorMeta, maximo))"></span>
+                            }
+                            <span class="dashboard-tip" role="tooltip">@dica</span>
+                            <span class="dashboard-bar-label" aria-hidden="true">@nome[..3]</span>
+                        </button>
+                    }
+                </div>
+            </div>
+        </figure>
+    };
+
+    private static decimal? SomaMetas(IEnumerable<decimal?> metas)
+    {
+        var definidas = metas.Where(meta => meta is not null).ToList();
+        return definidas.Count == 0 ? null : definidas.Sum();
+    }
+
+    /// <summary>Rounds the chart top up to 1, 2, 2.5 or 5 times a power of ten.</summary>
+    private static decimal NiceMax(decimal valor)
+    {
+        if (valor <= 0)
+        {
+            return 1;
+        }
+
+        var potencia = (decimal)Math.Pow(10, Math.Floor(Math.Log10((double)valor)));
+        foreach (var passo in new[] { 1m, 2m, 2.5m, 5m, 10m })
+        {
+            if (valor <= passo * potencia)
+            {
+                return passo * potencia;
+            }
+        }
+
+        return 10 * potencia;
+    }
+
+    /// <summary>Share of the plot height (0 to 1), formatted for a CSS calc().</summary>
+    private static string Fraction(decimal valor, decimal maximo) =>
+        Math.Clamp(valor / maximo, 0, 1).ToString("0.####", CultureInfo.InvariantCulture);
+
+    private static string FormatPercent(decimal realizado, decimal meta) =>
+        meta > 0 ? (realizado / meta).ToString("P0", BrazilianCulture) : "—";
+
+    private static string FormatValue(decimal valor) => valor.ToString("C2", BrazilianCulture);
+
+    private sealed record MesRow(
+        int Mes,
+        int Viagens,
+        decimal Faturamento,
+        decimal FaturamentoPago,
+        int? MetaViagens,
+        decimal? MetaFaturamento);
+
+    private sealed record MetaRequest(int MetaViagens, decimal MetaFaturamento);
+
+    private sealed class MetaEdicao
+    {
+        public int Mes { get; init; }
+        public int? MetaViagens { get; set; }
+        public decimal? MetaFaturamento { get; set; }
+    }
+}

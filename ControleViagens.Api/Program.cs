@@ -17,6 +17,7 @@ builder.Services.AddSingleton(Npgsql.NpgsqlDataSource.Create(ToNpgsqlConnectionS
 builder.Services.AddScoped<IPassageiroService, PassageiroService>();
 builder.Services.AddScoped<ITrechoService, TrechoService>();
 builder.Services.AddScoped<IViagemService, ViagemService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
 
 var app = builder.Build();
 var clientIndexPath = Path.Combine(app.Environment.WebRootPath ?? string.Empty, "index.html");
@@ -53,6 +54,7 @@ app.MapHealthEndpoints();
 app.MapPassageirosEndpoints();
 app.MapTrechosEndpoints();
 app.MapViagensEndpoints();
+app.MapDashboardEndpoints();
 if (hasPublishedClient)
 {
     app.MapFallbackToFile("index.html", clientFileOptions);
