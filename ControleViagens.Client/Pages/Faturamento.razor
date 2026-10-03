@@ -68,6 +68,18 @@
                          @bind-Selected="_filtro.Passageiro"
                          @bind-Selected:after="ApplyFiltersAsync" />
         </div>
+        <div class="viagem-filter">
+            <label class="passenger-field-label" for="faturamento-pago">Pago</label>
+            <select id="faturamento-pago"
+                    class="passenger-name-input passenger-create-input"
+                    disabled="@_isProcessing"
+                    @bind="_filtro.Pago"
+                    @bind:after="ApplyFiltersAsync">
+                <option value="">Todas</option>
+                <option value="true">Sim</option>
+                <option value="false">Não</option>
+            </select>
+        </div>
         <button class="passenger-cancel-button viagem-filter-clear"
                 type="button"
                 disabled="@(_isProcessing || !_filtro.HasAny)"
@@ -214,6 +226,11 @@
         if (_filtro.Passageiro is { } passageiro)
         {
             query.Add($"idPassageiro={FormatId(passageiro.IdPass)}");
+        }
+
+        if (!string.IsNullOrEmpty(_filtro.Pago))
+        {
+            query.Add($"pago={_filtro.Pago}");
         }
 
         return query.Count == 0 ? "api/viagens" : $"api/viagens?{string.Join("&", query)}";
@@ -376,7 +393,11 @@
         public DateOnly? DataInicial { get; set; }
         public DateOnly? DataFinal { get; set; }
         public PassageiroOption? Passageiro { get; set; }
-        public bool HasAny => DataInicial is not null || DataFinal is not null || Passageiro is not null;
+
+        /// <summary>Select value: "" (todas), "true" or "false"; sent as-is to the API.</summary>
+        public string Pago { get; set; } = string.Empty;
+
+        public bool HasAny => DataInicial is not null || DataFinal is not null || Passageiro is not null || Pago.Length > 0;
     }
     private sealed class FaturamentoException(string message) : Exception(message);
 }

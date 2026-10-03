@@ -39,6 +39,12 @@ public sealed class ViagemService(NpgsqlDataSource dataSource) : IViagemService
             command.Parameters.AddWithValue("id_trecho", idTrecho);
         }
 
+        if (filtro.Pago is { } pago)
+        {
+            conditions.Add("v.pago = @pago");
+            command.Parameters.AddWithValue("pago", pago);
+        }
+
         var where = conditions.Count == 0 ? string.Empty : " WHERE " + string.Join(" AND ", conditions);
         command.CommandText = string.Format(SelectFromViagem, "public.viagem") + where +
             " ORDER BY v.data_viagem DESC, v.id_viagem DESC";

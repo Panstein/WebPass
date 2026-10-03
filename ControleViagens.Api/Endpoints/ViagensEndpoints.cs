@@ -16,6 +16,7 @@ public static class ViagensEndpoints
             DateOnly? dataFinal,
             decimal? idPassageiro,
             decimal? idTrecho,
+            bool? pago,
             IViagemService service,
             ILoggerFactory loggerFactory,
             CancellationToken cancellationToken) =>
@@ -29,7 +30,7 @@ public static class ViagensEndpoints
 
             try
             {
-                var filtro = new ViagemFiltro(dataInicial, dataFinal, idPassageiro, idTrecho);
+                var filtro = new ViagemFiltro(dataInicial, dataFinal, idPassageiro, idTrecho, pago);
                 return TypedResults.Ok(await service.GetAllAsync(filtro, cancellationToken));
             }
             catch (NpgsqlException exception)
@@ -42,7 +43,7 @@ public static class ViagensEndpoints
             }
         })
         .WithName("GetViagens")
-        .WithSummary("Lista as viagens com passageiro e trecho, com filtros opcionais por período, passageiro e trecho.")
+        .WithSummary("Lista as viagens com passageiro e trecho, com filtros opcionais por período, passageiro, trecho e situação de pagamento.")
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
 

@@ -5,4 +5,5 @@ public sealed record ViagemFiltro(
     DateOnly? DataInicial,
     DateOnly? DataFinal,
     decimal? IdPassageiro,
-    decimal? IdTrecho);
+    decimal? IdTrecho,
+    bool? Pago);

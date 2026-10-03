@@ -144,7 +144,7 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--coral); outline
 .viagem-filter-clear { min-height: 40px; white-space: nowrap; }
 .viagem-filter-clear:disabled { cursor: default; opacity: .5; }
 @media (min-width: 1181px) {
-    .faturamento-filters { grid-template-columns: 150px 150px minmax(0, 1fr) auto; }
+    .faturamento-filters { grid-template-columns: 150px 150px minmax(0, 1fr) 120px auto; }
 }
 .faturamento-panel .module-panel-header { flex-wrap: wrap; gap: 10px; }
 .faturamento-panel .passenger-header-tools { flex-wrap: wrap; justify-content: flex-end; }
