@@ -56,8 +56,9 @@ public sealed class ViagemService(NpgsqlDataSource dataSource) : IViagemService
     public async Task<ViagemResponse> CreateAsync(CreateViagemRequest request, CancellationToken cancellationToken)
     {
         await using var command = dataSource.CreateCommand(
-            "WITH gravada AS (INSERT INTO public.viagem (id_passageiro, id_trecho, data_viagem, pago) " +
-            "VALUES (@id_passageiro, @id_trecho, @data_viagem, @pago) RETURNING *) " +
+            "WITH gravada AS (INSERT INTO public.viagem (id_passageiro, id_trecho, data_viagem, pago, grupo_pagamento) " +
+            "VALUES (@id_passageiro, @id_trecho, @data_viagem, @pago, " +
+            "CASE WHEN @pago THEN nextval('public.viagem_grupo_pagamento_seq') END) RETURNING *) " +
             string.Format(SelectFromViagem, "gravada"));
         command.Parameters.AddWithValue("id_passageiro", request.IdPassageiro);
         command.Parameters.AddWithValue("id_trecho", request.IdTrecho);
@@ -71,9 +72,15 @@ public sealed class ViagemService(NpgsqlDataSource dataSource) : IViagemService
 
     public async Task<ViagemResponse?> UpdateAsync(decimal idViagem, UpdateViagemRequest request, CancellationToken cancellationToken)
     {
+        // Marking as paid opens a new payment group (same sequence as billing); an already-paid
+        // trip keeps its group, and unmarking clears it.
         await using var command = dataSource.CreateCommand(
             "WITH gravada AS (UPDATE public.viagem SET id_passageiro = @id_passageiro, id_trecho = @id_trecho, " +
-            "data_viagem = @data_viagem, pago = @pago WHERE id_viagem = @id_viagem RETURNING *) " +
+            "data_viagem = @data_viagem, pago = @pago, grupo_pagamento = CASE " +
+            "WHEN NOT @pago THEN NULL " +
+            "WHEN grupo_pagamento IS NOT NULL THEN grupo_pagamento " +
+            "ELSE nextval('public.viagem_grupo_pagamento_seq') END " +
+            "WHERE id_viagem = @id_viagem RETURNING *) " +
             string.Format(SelectFromViagem, "gravada"));
         command.Parameters.AddWithValue("id_passageiro", request.IdPassageiro);
         command.Parameters.AddWithValue("id_trecho", request.IdTrecho);
@@ -134,7 +141,7 @@ public sealed class ViagemService(NpgsqlDataSource dataSource) : IViagemService
 
     /// <summary>
     /// Reverses billing for the whole group of each given trip; paid trips without a group
-    /// (marked by hand on the Viagens screen) are reversed individually.
+    /// (legacy data) are reversed individually.
     /// </summary>
     public async Task<int> CancelarFaturamentoAsync(IReadOnlyCollection<decimal> idsViagem, CancellationToken cancellationToken)
     {

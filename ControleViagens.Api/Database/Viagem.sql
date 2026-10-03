@@ -96,6 +96,7 @@ ALTER TABLE public.viagem
 
 -- Preenchido no faturamento com nextval('public.viagem_grupo_pagamento_seq');
 -- todas as viagens faturadas juntas recebem o mesmo número. Nulo = não faturada.
+-- Marcar "Viagem paga" no cadastro também gera um novo número para aquela viagem.
 CREATE SEQUENCE IF NOT EXISTS public.viagem_grupo_pagamento_seq
     AS bigint
     START WITH 1
