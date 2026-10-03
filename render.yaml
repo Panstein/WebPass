@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: controle-viagens
+    runtime: docker
+    plan: free
+    region: virginia
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      # Set in the Render dashboard (secret, not versioned). Accepts the postgresql:// URI from Neon.
+      - key: ConnectionStrings__WebPass
+        sync: false

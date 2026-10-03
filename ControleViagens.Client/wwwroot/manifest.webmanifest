@@ -1,0 +1,22 @@
+{
+  "name": "Controle de Viagens",
+  "short_name": "Viagens",
+  "id": "./",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f3f7ef",
+  "theme_color": "#285c45",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    },
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    }
+  ]
+}

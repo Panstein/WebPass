@@ -1,0 +1,52 @@
+﻿@inherits LayoutComponentBase
+@inject HttpClient Http
+
+<div class="app-shell">
+    <header class="app-topbar">
+        <a class="app-brand" href="/" aria-label="Controle de Viagens, início">
+            <span class="app-brand-mark">CV</span>
+            <span class="app-brand-name">Controle de Viagens</span>
+        </a>
+        <div class="connection-state app-topbar-status @(_databaseConnected ? "is-connected" : "is-disconnected")"
+             role="status"
+             aria-label="@_connectionStatus"
+             title="@_connectionStatus">
+            <span class="connection-dot"></span>
+            <span class="connection-label">@_connectionStatus</span>
+        </div>
+    </header>
+
+    <div class="module-tab-bar">
+        <NavMenu />
+    </div>
+
+    <div class="main-area">
+        <main class="content">
+            @Body
+        </main>
+
+        <footer class="app-footer">
+            <a class="footer-home" href="" aria-label="Voltar para o início">By Panstein</a>
+            <span>Controle de Viagens</span>
+        </footer>
+    </div>
+</div>
+
+@code {
+    private bool _databaseConnected;
+    private string _connectionStatus = "Verificando PostgreSQL";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            using var response = await Http.GetAsync("api/health");
+            _databaseConnected = response.IsSuccessStatusCode;
+            _connectionStatus = _databaseConnected ? "PostgreSQL conectado" : "Banco indisponível";
+        }
+        catch (HttpRequestException)
+        {
+            _connectionStatus = "API indisponível";
+        }
+    }
+}

@@ -1,0 +1,451 @@
+@page "/trechos"
+
+<PageTitle>Trechos | Controle de Viagens</PageTitle>
+@using System.ComponentModel.DataAnnotations
+@using System.Globalization
+@inject HttpClient Http
+@inject IJSRuntime JavaScript
+
+<section class="page-heading">
+    <span class="eyebrow">PLANEJAMENTO</span>
+    <h1>Trechos</h1>
+    <p>Consulte e mantenha as origens, destinos e valores dos trechos.</p>
+</section>
+
+<section class="module-panel trecho-panel" aria-labelledby="trechos-title">
+    <header class="module-panel-header">
+        <strong id="trechos-title">Trechos cadastrados</strong>
+        <div class="passenger-header-tools">
+            @if (!_isLoading && _loadError is null)
+            {
+                <span class="passenger-count">@_trechos.Count</span>
+            }
+            <a class="passenger-home-button" href="/" aria-label="Voltar à tela inicial" title="Voltar à tela inicial">
+                <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m9 5-5 5 5 5M4 10h12" /></svg>
+                <span class="passenger-home-full">Voltar à tela inicial</span>
+                <span class="passenger-home-short">Início</span>
+            </a>
+            <button class="passenger-add-button"
+                    type="button"
+                    title="Novo trecho"
+                    aria-label="Adicionar trecho"
+                    @onclick="OpenCreateDialog">
+                <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M10 4v12M4 10h12" /></svg>
+            </button>
+        </div>
+    </header>
+
+    @if (_isLoading)
+    {
+        <div class="passenger-feedback" role="status">Carregando trechos...</div>
+    }
+    else if (_loadError is not null)
+    {
+        <div class="passenger-feedback passenger-feedback-error" role="alert">@_loadError</div>
+    }
+    else if (_trechos.Count == 0)
+    {
+        <div class="passenger-feedback">Nenhum trecho cadastrado.</div>
+    }
+    else
+    {
+        @if (_statusMessage is not null)
+        {
+            <div class="passenger-feedback passenger-feedback-success" role="status">@_statusMessage</div>
+        }
+
+        @if (_actionError is not null)
+        {
+            <div class="passenger-feedback passenger-feedback-error" role="alert">@_actionError</div>
+        }
+
+        <div class="passenger-table-wrap">
+            <table class="passenger-table trecho-table">
+                <thead>
+                    <tr>
+                        <th scope="col">ID trecho</th>
+                        <th scope="col">Origem</th>
+                        <th scope="col">Destino</th>
+                        <th scope="col">Valor</th>
+                        <th scope="col"><span class="visually-hidden">Ações</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var trecho in _trechos)
+                    {
+                        <tr @key="trecho.IdTrecho">
+                            <td class="passenger-id">@FormatId(trecho.IdTrecho)</td>
+                            @if (_editingId == trecho.IdTrecho)
+                            {
+                                <td>
+                                    <input class="passenger-name-input trecho-cell-input"
+                                           maxlength="20"
+                                           aria-label="Origem do trecho"
+                                           @bind="_editedOrigem"
+                                           disabled="@_isSaving" />
+                                </td>
+                                <td>
+                                    <input class="passenger-name-input trecho-cell-input"
+                                           maxlength="20"
+                                           aria-label="Destino do trecho"
+                                           @bind="_editedDestino"
+                                           disabled="@_isSaving" />
+                                </td>
+                                <td>
+                                    <input class="passenger-name-input trecho-cell-input trecho-value-input"
+                                           type="number"
+                                           min="0"
+                                           max="1000"
+                                           step="0.01"
+                                           aria-label="Valor do trecho"
+                                           @bind="_editedValor"
+                                           disabled="@_isSaving" />
+                                </td>
+                            }
+                            else
+                            {
+                                <td>@trecho.Origem</td>
+                                <td>@trecho.Destino</td>
+                                <td class="trecho-value">@FormatValue(trecho.Valor)</td>
+                            }
+                            <td>
+                                <div class="passenger-actions">
+                                    @if (_editingId == trecho.IdTrecho)
+                                    {
+                                        <button class="passenger-action passenger-action-save"
+                                                type="button"
+                                                title="Salvar trecho"
+                                                aria-label="Salvar trecho @FormatId(trecho.IdTrecho)"
+                                                disabled="@_isSaving"
+                                                @onclick="() => SaveEditAsync(trecho)">
+                                            <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m4 10 4 4 8-8" /></svg>
+                                        </button>
+                                        <button class="passenger-action"
+                                                type="button"
+                                                title="Cancelar edição"
+                                                aria-label="Cancelar edição do trecho @FormatId(trecho.IdTrecho)"
+                                                disabled="@_isSaving"
+                                                @onclick="CancelEdit">
+                                            <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m5 5 10 10M15 5 5 15" /></svg>
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button class="passenger-action"
+                                                type="button"
+                                                title="Editar trecho"
+                                                aria-label="Editar trecho @FormatId(trecho.IdTrecho)"
+                                                disabled="@(_editingId is not null || _deletingId is not null)"
+                                                @onclick="() => BeginEdit(trecho)">
+                                            <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m13 4 3 3M4 16l3.5-.7L16 6a2.1 2.1 0 0 0-3-3l-8.5 8.7L4 16z" /></svg>
+                                        </button>
+                                        <button class="passenger-action passenger-action-delete"
+                                                type="button"
+                                                title="Excluir trecho"
+                                                aria-label="Excluir trecho @FormatId(trecho.IdTrecho)"
+                                                disabled="@(_editingId is not null || _deletingId is not null)"
+                                                @onclick="() => DeleteAsync(trecho)">
+                                            <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M4 6h12M8 6V4h4v2m3 0-.7 10H5.7L5 6m3 3v4m4-4v4" /></svg>
+                                        </button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@if (_isCreateDialogOpen)
+{
+    <div class="passenger-dialog-backdrop">
+        <section class="passenger-dialog" role="dialog" aria-modal="true" aria-labelledby="create-trecho-title">
+            <header class="passenger-dialog-header">
+                <div>
+                    <span class="eyebrow">NOVO CADASTRO</span>
+                    <h2 id="create-trecho-title">Adicionar trecho</h2>
+                </div>
+                <button class="passenger-action"
+                        type="button"
+                        title="Fechar"
+                        aria-label="Fechar janela de inclusão"
+                        disabled="@_isCreating"
+                        @onclick="CloseCreateDialog">
+                    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m5 5 10 10M15 5 5 15" /></svg>
+                </button>
+            </header>
+
+            <EditForm Model="_newTrecho" OnValidSubmit="CreateAsync">
+                <DataAnnotationsValidator />
+                <label class="passenger-field-label" for="new-trecho-origem">Origem</label>
+                <InputText id="new-trecho-origem"
+                           class="passenger-name-input passenger-create-input"
+                           maxlength="20"
+                           @bind-Value="_newTrecho.Origem"
+                           disabled="@_isCreating"
+                           autofocus />
+                <ValidationMessage For="() => _newTrecho.Origem" />
+
+                <label class="passenger-field-label trecho-second-field" for="new-trecho-destino">Destino</label>
+                <InputText id="new-trecho-destino"
+                           class="passenger-name-input passenger-create-input"
+                           maxlength="20"
+                           @bind-Value="_newTrecho.Destino"
+                           disabled="@_isCreating" />
+                <ValidationMessage For="() => _newTrecho.Destino" />
+
+                <label class="passenger-field-label trecho-second-field" for="new-trecho-valor">Valor</label>
+                <InputNumber id="new-trecho-valor"
+                             class="passenger-name-input passenger-create-input"
+                             min="0"
+                             max="1000"
+                             step="0.01"
+                             @bind-Value="_newTrecho.Valor"
+                             disabled="@_isCreating" />
+                <ValidationMessage For="() => _newTrecho.Valor" />
+
+                @if (_createError is not null)
+                {
+                    <div class="passenger-feedback-error" role="alert">@_createError</div>
+                }
+
+                <div class="passenger-dialog-actions">
+                    <button class="passenger-cancel-button"
+                            type="button"
+                            disabled="@_isCreating"
+                            @onclick="CloseCreateDialog">Cancelar</button>
+                    <button class="passenger-submit-button" type="submit" disabled="@_isCreating">
+                        @if (_isCreating)
+                        {
+                            <span>Salvando...</span>
+                        }
+                        else
+                        {
+                            <span>Adicionar trecho</span>
+                        }
+                    </button>
+                </div>
+            </EditForm>
+        </section>
+    </div>
+}
+
+@code {
+    private static readonly CultureInfo BrazilianCulture = CultureInfo.GetCultureInfo("pt-BR");
+    private List<TrechoRow> _trechos = [];
+    private decimal? _editingId;
+    private decimal? _deletingId;
+    private string _editedOrigem = string.Empty;
+    private string _editedDestino = string.Empty;
+    private decimal _editedValor;
+    private string? _loadError;
+    private string? _actionError;
+    private string? _statusMessage;
+    private string? _createError;
+    private NewTrechoModel _newTrecho = new();
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private bool _isCreating;
+    private bool _isCreateDialogOpen;
+
+    protected override Task OnInitializedAsync() => LoadTrechosAsync();
+
+    private async Task LoadTrechosAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+        try
+        {
+            _trechos = await Http.GetFromJsonAsync<List<TrechoRow>>("api/trechos") ?? [];
+        }
+        catch (HttpRequestException)
+        {
+            _loadError = "Não foi possível carregar os trechos. Verifique a conexão com o servidor.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void OpenCreateDialog()
+    {
+        _newTrecho = new NewTrechoModel();
+        _createError = null;
+        _isCreateDialogOpen = true;
+    }
+
+    private void CloseCreateDialog()
+    {
+        _isCreateDialogOpen = false;
+        _createError = null;
+    }
+
+    private async Task CreateAsync()
+    {
+        _isCreating = true;
+        _createError = null;
+        _actionError = null;
+        _statusMessage = null;
+        try
+        {
+            var request = new CreateTrechoRequest(_newTrecho.Origem.Trim(), _newTrecho.Destino.Trim(), _newTrecho.Valor);
+            using var response = await Http.PostAsJsonAsync("api/trechos", request);
+            if (response.IsSuccessStatusCode)
+            {
+                CloseCreateDialog();
+                await LoadTrechosAsync();
+                if (_loadError is null)
+                {
+                    _statusMessage = "Trecho cadastrado.";
+                }
+            }
+            else
+            {
+                _createError = response.StatusCode == System.Net.HttpStatusCode.BadRequest
+                    ? "Confira origem, destino e valor informado."
+                    : "Não foi possível cadastrar o trecho.";
+            }
+        }
+        catch (HttpRequestException)
+        {
+            _createError = "Não foi possível cadastrar o trecho. Verifique a conexão com o servidor.";
+        }
+        finally
+        {
+            _isCreating = false;
+        }
+    }
+
+    private void BeginEdit(TrechoRow trecho)
+    {
+        _editingId = trecho.IdTrecho;
+        _editedOrigem = trecho.Origem;
+        _editedDestino = trecho.Destino;
+        _editedValor = trecho.Valor;
+        _actionError = null;
+        _statusMessage = null;
+    }
+
+    private void CancelEdit()
+    {
+        _editingId = null;
+        _editedOrigem = string.Empty;
+        _editedDestino = string.Empty;
+        _editedValor = 0;
+        _actionError = null;
+    }
+
+    private async Task SaveEditAsync(TrechoRow trecho)
+    {
+        var origem = _editedOrigem.Trim();
+        var destino = _editedDestino.Trim();
+        if (origem.Length is 0 or > 20 || destino.Length is 0 or > 20 || _editedValor is < 0 or > 1000m)
+        {
+            _actionError = "Informe origem e destino com até 20 caracteres e valor entre 0,00 e 1.000,00.";
+            return;
+        }
+
+        _isSaving = true;
+        _actionError = null;
+        _statusMessage = null;
+        try
+        {
+            var id = trecho.IdTrecho.ToString(CultureInfo.InvariantCulture);
+            var request = new UpdateTrechoRequest(origem, destino, _editedValor);
+            using var response = await Http.PutAsJsonAsync($"api/trechos/{id}", request);
+            if (response.IsSuccessStatusCode)
+            {
+                var updated = await response.Content.ReadFromJsonAsync<TrechoRow>();
+                if (updated is not null)
+                {
+                    var index = _trechos.FindIndex(item => item.IdTrecho == trecho.IdTrecho);
+                    if (index >= 0)
+                    {
+                        _trechos[index] = updated;
+                    }
+                }
+
+                _editingId = null;
+                _statusMessage = "Trecho atualizado.";
+            }
+            else
+            {
+                _actionError = response.StatusCode == System.Net.HttpStatusCode.NotFound
+                    ? "Este trecho não foi encontrado. Atualize a página e tente novamente."
+                    : "Não foi possível salvar a alteração.";
+            }
+        }
+        catch (HttpRequestException)
+        {
+            _actionError = "Não foi possível salvar a alteração. Verifique a conexão com o servidor.";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task DeleteAsync(TrechoRow trecho)
+    {
+        var confirmed = await JavaScript.InvokeAsync<bool>("confirm", $"Excluir o trecho {trecho.Origem} → {trecho.Destino}?");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        _deletingId = trecho.IdTrecho;
+        _actionError = null;
+        _statusMessage = null;
+        try
+        {
+            var id = trecho.IdTrecho.ToString(CultureInfo.InvariantCulture);
+            using var response = await Http.DeleteAsync($"api/trechos/{id}");
+            if (response.IsSuccessStatusCode)
+            {
+                _trechos.RemoveAll(item => item.IdTrecho == trecho.IdTrecho);
+                _statusMessage = "Trecho excluído.";
+            }
+            else
+            {
+                _actionError = response.StatusCode switch
+                {
+                    System.Net.HttpStatusCode.NotFound => "Este trecho já não está cadastrado.",
+                    System.Net.HttpStatusCode.Conflict => "Este trecho possui viagens registradas e não pode ser excluído.",
+                    _ => "Não foi possível excluir o trecho."
+                };
+            }
+        }
+        catch (HttpRequestException)
+        {
+            _actionError = "Não foi possível excluir o trecho. Verifique a conexão com o servidor.";
+        }
+        finally
+        {
+            _deletingId = null;
+        }
+    }
+
+    private static string FormatId(decimal idTrecho) => idTrecho.ToString("0", CultureInfo.InvariantCulture);
+    private static string FormatValue(decimal valor) => valor.ToString("C2", BrazilianCulture);
+
+    private sealed record TrechoRow(decimal IdTrecho, string Origem, string Destino, decimal Valor);
+    private sealed record CreateTrechoRequest(string Origem, string Destino, decimal Valor);
+    private sealed record UpdateTrechoRequest(string Origem, string Destino, decimal Valor);
+
+    private sealed class NewTrechoModel
+    {
+        [Required(ErrorMessage = "Informe a origem.")]
+        [StringLength(20, ErrorMessage = "A origem deve ter até 20 caracteres.")]
+        public string Origem { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Informe o destino.")]
+        [StringLength(20, ErrorMessage = "O destino deve ter até 20 caracteres.")]
+        public string Destino { get; set; } = string.Empty;
+
+        [Range(typeof(decimal), "0", "1000", ErrorMessage = "O valor deve ficar entre 0,00 e 1.000,00.", ParseLimitsInInvariantCulture = true)]
+        public decimal Valor { get; set; }
+    }
+}

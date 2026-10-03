@@ -1,0 +1,280 @@
+@page "/faturamento"
+@using System.Globalization
+@inject HttpClient Http
+@inject IJSRuntime JavaScript
+
+<PageTitle>Faturamento | Controle de Viagens</PageTitle>
+
+<section class="page-heading">
+    <span class="eyebrow">FINANCEIRO</span>
+    <h1>Faturamento</h1>
+    <p>Marque as viagens pendentes (vermelho) para faturar, ou as pagas (verde) para cancelar o faturamento.</p>
+</section>
+
+<section class="module-panel viagem-panel faturamento-panel" aria-labelledby="faturamento-title">
+    <header class="module-panel-header">
+        <strong id="faturamento-title">Viagens</strong>
+        <div class="passenger-header-tools">
+            @if (!_isLoading && _loadError is null)
+            {
+                <span class="passenger-count">@_viagens.Count</span>
+            }
+            <a class="passenger-home-button" href="/" aria-label="Voltar à tela inicial" title="Voltar à tela inicial">
+                <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m9 5-5 5 5 5M4 10h12" /></svg>
+                <span class="passenger-home-full">Voltar à tela inicial</span>
+                <span class="passenger-home-short">Início</span>
+            </a>
+            <button class="faturamento-button faturamento-button-faturar"
+                    type="button"
+                    title="Faturar as viagens pendentes marcadas"
+                    disabled="@(_isProcessing || !PendentesMarcadas.Any())"
+                    @onclick="FaturarAsync">Faturar Itens</button>
+            <button class="faturamento-button faturamento-button-cancelar"
+                    type="button"
+                    title="Estornar o faturamento das viagens pagas marcadas e de todo o grupo delas"
+                    disabled="@(_isProcessing || !PagasMarcadas.Any())"
+                    @onclick="CancelarFaturamentoAsync">Cancelar Faturamento</button>
+        </div>
+    </header>
+
+    @if (_statusMessage is not null)
+    {
+        <div class="passenger-feedback passenger-feedback-success" role="status">@_statusMessage</div>
+    }
+
+    @if (_actionError is not null)
+    {
+        <div class="passenger-feedback passenger-feedback-error" role="alert">@_actionError</div>
+    }
+
+    @if (_isLoading)
+    {
+        <div class="passenger-feedback" role="status">Carregando viagens...</div>
+    }
+    else if (_loadError is not null)
+    {
+        <div class="passenger-feedback passenger-feedback-error" role="alert">@_loadError</div>
+    }
+    else if (_viagens.Count == 0)
+    {
+        <div class="passenger-feedback">Nenhuma viagem cadastrada.</div>
+    }
+    else
+    {
+        <div class="faturamento-summary" role="status">
+            <span>A faturar: <strong>@PendentesMarcadas.Count()</strong> · <strong>@FormatValue(PendentesMarcadas.Sum(viagem => viagem.Valor))</strong></span>
+            <span>Pagas marcadas: <strong>@PagasMarcadas.Count()</strong></span>
+        </div>
+
+        <div class="passenger-table-wrap">
+            <table class="passenger-table faturamento-table">
+                <thead>
+                    <tr>
+                        <th scope="col" class="faturamento-check">
+                            <input type="checkbox"
+                                   title="Marcar todas as pendentes"
+                                   aria-label="Marcar todas as viagens pendentes"
+                                   checked="@TodasPendentesMarcadas"
+                                   disabled="@(_isProcessing || !_viagens.Any(viagem => !viagem.Pago))"
+                                   @onchange="ToggleTodas" />
+                        </th>
+                        <th scope="col">ID viagem</th>
+                        <th scope="col">Data</th>
+                        <th scope="col">Passageiro</th>
+                        <th scope="col">Trecho</th>
+                        <th scope="col">Valor</th>
+                        <th scope="col">Pago</th>
+                        <th scope="col">Grupo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var viagem in _viagens)
+                    {
+                        <tr @key="viagem.IdViagem" class="@(viagem.Pago ? "faturamento-pago" : "faturamento-pendente")">
+                            <td class="faturamento-check">
+                                <input type="checkbox"
+                                       title="@(viagem.Pago ? "Marcar para cancelar o faturamento" : "Marcar para faturar")"
+                                       aria-label="Marcar viagem @FormatId(viagem.IdViagem)"
+                                       checked="@_selecionadas.Contains(viagem.IdViagem)"
+                                       disabled="@_isProcessing"
+                                       @onchange="() => Toggle(viagem)" />
+                            </td>
+                            <td class="passenger-id">@FormatId(viagem.IdViagem)</td>
+                            <td class="viagem-date">@FormatDate(viagem.DataViagem)</td>
+                            <td>@viagem.NomePassageiro</td>
+                            <td>@viagem.Origem<span class="viagem-route-arrow" aria-label="para">→</span>@viagem.Destino</td>
+                            <td class="trecho-value">@FormatValue(viagem.Valor)</td>
+                            <td class="faturamento-status">@(viagem.Pago ? "Sim" : "Não")</td>
+                            <td class="passenger-id">@(viagem.GrupoPagamento is { } grupo ? FormatId(grupo) : "—")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@code {
+    private static readonly CultureInfo BrazilianCulture = CultureInfo.GetCultureInfo("pt-BR");
+    private List<ViagemRow> _viagens = [];
+    private readonly HashSet<decimal> _selecionadas = [];
+    private string? _loadError;
+    private string? _actionError;
+    private string? _statusMessage;
+    private bool _isLoading = true;
+    private bool _isProcessing;
+
+    private IEnumerable<ViagemRow> PendentesMarcadas => _viagens.Where(viagem => !viagem.Pago && _selecionadas.Contains(viagem.IdViagem));
+    private IEnumerable<ViagemRow> PagasMarcadas => _viagens.Where(viagem => viagem.Pago && _selecionadas.Contains(viagem.IdViagem));
+
+    private bool TodasPendentesMarcadas =>
+        _viagens.Any(viagem => !viagem.Pago) && _viagens.Where(viagem => !viagem.Pago).All(viagem => _selecionadas.Contains(viagem.IdViagem));
+
+    protected override Task OnInitializedAsync() => LoadViagensAsync();
+
+    private async Task LoadViagensAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+        try
+        {
+            _viagens = await Http.GetFromJsonAsync<List<ViagemRow>>("api/viagens") ?? [];
+            _selecionadas.Clear();
+        }
+        catch (HttpRequestException)
+        {
+            _loadError = "Não foi possível carregar as viagens. Verifique a conexão com o servidor.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task FaturarAsync()
+    {
+        var pendentes = PendentesMarcadas.ToList();
+        var ignoradas = PagasMarcadas.Count();
+        var confirmed = await JavaScript.InvokeAsync<bool>("confirm",
+            $"Faturar {pendentes.Count} {(pendentes.Count == 1 ? "viagem" : "viagens")}, total {FormatValue(pendentes.Sum(viagem => viagem.Valor))}?" +
+            (ignoradas > 0 ? $"\n\n{ignoradas} já paga(s) marcada(s) será(ão) ignorada(s)." : string.Empty));
+        if (!confirmed)
+        {
+            return;
+        }
+
+        await ExecuteAsync(async () =>
+        {
+            using var response = await Http.PostAsJsonAsync("api/viagens/faturamento",
+                new FaturamentoRequest(pendentes.Select(viagem => viagem.IdViagem).ToArray()));
+            if (response.IsSuccessStatusCode)
+            {
+                var faturamento = await response.Content.ReadFromJsonAsync<FaturamentoResult>();
+                return $"{faturamento!.Quantidade} {(faturamento.Quantidade == 1 ? "viagem faturada" : "viagens faturadas")} no grupo {FormatId(faturamento.GrupoPagamento)}.";
+            }
+
+            throw new FaturamentoException(response.StatusCode == System.Net.HttpStatusCode.Conflict
+                ? "Alguma das viagens marcadas não existe mais ou já foi paga. Nada foi faturado; a lista foi atualizada."
+                : "Não foi possível faturar as viagens.");
+        });
+    }
+
+    private async Task CancelarFaturamentoAsync()
+    {
+        var pagas = PagasMarcadas.ToList();
+        var grupos = pagas.Where(viagem => viagem.GrupoPagamento is not null).Select(viagem => viagem.GrupoPagamento!.Value).Distinct().ToList();
+        var afetadas = _viagens.Count(viagem => viagem.Pago &&
+            (_selecionadas.Contains(viagem.IdViagem) || (viagem.GrupoPagamento is { } grupo && grupos.Contains(grupo))));
+        var confirmed = await JavaScript.InvokeAsync<bool>("confirm",
+            (grupos.Count == 0
+                ? "Cancelar o pagamento das viagens marcadas?"
+                : $"Cancelar o faturamento do(s) grupo(s) {string.Join(", ", grupos.Select(FormatId))}?") +
+            $"\n\n{afetadas} {(afetadas == 1 ? "viagem voltará" : "viagens voltarão")} a ficar pendente(s), inclusive as do mesmo grupo que não foram marcadas.");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        await ExecuteAsync(async () =>
+        {
+            using var response = await Http.PostAsJsonAsync("api/viagens/faturamento/cancelamento",
+                new FaturamentoRequest(pagas.Select(viagem => viagem.IdViagem).ToArray()));
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new FaturamentoException("Não foi possível cancelar o faturamento.");
+            }
+
+            var cancelamento = await response.Content.ReadFromJsonAsync<CancelamentoResult>();
+            return $"Faturamento cancelado: {cancelamento!.Quantidade} {(cancelamento.Quantidade == 1 ? "viagem voltou" : "viagens voltaram")} a ficar pendente(s).";
+        });
+    }
+
+    /// <summary>Runs a billing action, then reloads the grid so the new colors and groups show.</summary>
+    private async Task ExecuteAsync(Func<Task<string>> action)
+    {
+        _isProcessing = true;
+        _statusMessage = null;
+        _actionError = null;
+        try
+        {
+            _statusMessage = await action();
+        }
+        catch (FaturamentoException exception)
+        {
+            _actionError = exception.Message;
+        }
+        catch (HttpRequestException)
+        {
+            _actionError = "Não foi possível concluir a operação. Verifique a conexão com o servidor.";
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+
+        await LoadViagensAsync();
+    }
+
+    private void Toggle(ViagemRow viagem)
+    {
+        if (!_selecionadas.Remove(viagem.IdViagem))
+        {
+            _selecionadas.Add(viagem.IdViagem);
+        }
+    }
+
+    private void ToggleTodas()
+    {
+        if (TodasPendentesMarcadas)
+        {
+            _selecionadas.Clear();
+            return;
+        }
+
+        foreach (var viagem in _viagens.Where(viagem => !viagem.Pago))
+        {
+            _selecionadas.Add(viagem.IdViagem);
+        }
+    }
+
+    private static string FormatId(decimal id) => id.ToString("0", CultureInfo.InvariantCulture);
+    private static string FormatDate(DateOnly data) => data.ToString("dd/MM/yyyy", BrazilianCulture);
+    private static string FormatValue(decimal valor) => valor.ToString("C2", BrazilianCulture);
+
+    private sealed record ViagemRow(
+        decimal IdViagem,
+        DateOnly DataViagem,
+        decimal IdPassageiro,
+        string NomePassageiro,
+        decimal IdTrecho,
+        string Origem,
+        string Destino,
+        decimal Valor,
+        bool Pago,
+        decimal? GrupoPagamento);
+
+    private sealed record FaturamentoRequest(decimal[] IdsViagem);
+    private sealed record FaturamentoResult(decimal GrupoPagamento, int Quantidade);
+    private sealed record CancelamentoResult(int Quantidade);
+    private sealed class FaturamentoException(string message) : Exception(message);
+}

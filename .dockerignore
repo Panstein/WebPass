@@ -1,0 +1,7 @@
+**/bin/
+**/obj/
+.vs/
+.vscode/
+.git/
+dist/
+ControleViagens.Api/appsettings.Development.json

@@ -1,0 +1,94 @@
+@ControleViagens.Api_HostAddress = http://localhost:5102
+
+GET {{ControleViagens.Api_HostAddress}}/api/health
+Accept: application/json
+
+### Lista os passageiros
+GET {{ControleViagens.Api_HostAddress}}/api/passageiros
+Accept: application/json
+
+### Cadastra um passageiro
+POST {{ControleViagens.Api_HostAddress}}/api/passageiros
+Content-Type: application/json
+
+{
+	"nome": "Novo passageiro"
+}
+
+### Atualiza o nome de um passageiro (substitua por um id existente)
+PUT {{ControleViagens.Api_HostAddress}}/api/passageiros/999999999
+Content-Type: application/json
+
+{
+	"nome": "Nome atualizado"
+}
+
+### Exclui um passageiro (substitua por um id existente)
+DELETE {{ControleViagens.Api_HostAddress}}/api/passageiros/999999999
+
+### Lista os trechos
+GET {{ControleViagens.Api_HostAddress}}/api/trechos
+Accept: application/json
+
+### Cadastra um trecho (id_trecho vem da sequence)
+POST {{ControleViagens.Api_HostAddress}}/api/trechos
+Content-Type: application/json
+
+{
+	"origem": "origem teste",
+	"destino": "destino teste",
+	"valor": 1.25
+}
+
+### Atualiza um trecho (substitua por um id existente)
+PUT {{ControleViagens.Api_HostAddress}}/api/trechos/999999999
+Content-Type: application/json
+
+{
+	"origem": "origem atualizada",
+	"destino": "destino atualizado",
+	"valor": 2.50
+}
+
+### Exclui um trecho (substitua por um id existente)
+DELETE {{ControleViagens.Api_HostAddress}}/api/trechos/999999999
+
+### Busca passageiros pelo nome (usada no cadastro de viagens)
+GET {{ControleViagens.Api_HostAddress}}/api/passageiros/busca?nome=ma&limite=10
+Accept: application/json
+
+### Busca trechos pela origem (usada no cadastro de viagens)
+GET {{ControleViagens.Api_HostAddress}}/api/trechos/busca?origem=sa&limite=10
+Accept: application/json
+
+### Lista as viagens
+GET {{ControleViagens.Api_HostAddress}}/api/viagens
+Accept: application/json
+
+### Lista as viagens filtradas (todos os filtros são opcionais)
+GET {{ControleViagens.Api_HostAddress}}/api/viagens?dataInicial=2026-10-01&dataFinal=2026-10-31&idPassageiro=1&idTrecho=5
+Accept: application/json
+
+### Cadastra uma viagem (id_viagem vem da sequence; ids precisam existir)
+POST {{ControleViagens.Api_HostAddress}}/api/viagens
+Content-Type: application/json
+
+{
+	"idPassageiro": 1,
+	"idTrecho": 1,
+	"dataViagem": "2026-10-15"
+}
+
+### Atualiza uma viagem (substitua por um id existente)
+PUT {{ControleViagens.Api_HostAddress}}/api/viagens/999999999
+Content-Type: application/json
+
+{
+	"idPassageiro": 1,
+	"idTrecho": 1,
+	"dataViagem": "2026-10-20",
+	"pago": true
+}
+
+### Exclui uma viagem (substitua por um id existente)
+DELETE {{ControleViagens.Api_HostAddress}}/api/viagens/999999999

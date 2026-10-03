@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="ControleViagens.Api/ControleViagens.Api.csproj" />
+  <Project Path="ControleViagens.Client/ControleViagens.Client.csproj" />
+</Solution>

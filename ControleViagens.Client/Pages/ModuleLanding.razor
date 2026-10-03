@@ -1,0 +1,23 @@
+<section class="page-heading">
+    <span class="eyebrow">@SectionLabel</span>
+    <h1>@Title</h1>
+    <p>@Description</p>
+</section>
+
+<section class="module-panel" aria-label="Conteúdo de @Title">
+    <header class="module-panel-header">
+        <strong>@PanelTitle</strong>
+    </header>
+    <div class="empty-state">
+        <span class="empty-state-mark" aria-hidden="true">+</span>
+        <h2>Área preparada</h2>
+        <p>O módulo está pronto para receber os dados e operações desta área.</p>
+    </div>
+</section>
+
+@code {
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public string Description { get; set; } = string.Empty;
+    [Parameter] public string SectionLabel { get; set; } = "MÓDULO";
+    [Parameter] public string PanelTitle { get; set; } = "Registros";
+}

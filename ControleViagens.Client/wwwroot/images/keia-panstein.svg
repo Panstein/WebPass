@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 512" role="img" aria-labelledby="logo-title">
+  <title id="logo-title">Keia Panstein</title>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M580 106a118 118 0 1 0 31 42" stroke="#176d79" stroke-width="13"/>
+    <path d="M581 129a112 112 0 0 1 42 117" stroke="#d99b2c" stroke-width="16"/>
+    <path d="M436 174v150m8-80 137-146m-137 146 99 77" stroke="#075d70" stroke-width="20"/>
+    <path d="M540 300V184h34c27 0 43 15 43 38 0 25-17 39-45 39h-31" stroke="#d99b2c" stroke-width="17"/>
+  </g>
+  <text x="512" y="430" text-anchor="middle" fill="#075d70" font-family="Manrope, Arial, sans-serif" font-size="57" font-weight="600" letter-spacing="3.5">KEIA PANSTEIN</text>
+</svg>

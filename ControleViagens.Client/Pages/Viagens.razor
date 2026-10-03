@@ -1,0 +1,492 @@
+@page "/viagens"
+@using System.Globalization
+@inject HttpClient Http
+@inject IJSRuntime JavaScript
+
+<PageTitle>Viagens | Controle de Viagens</PageTitle>
+
+<section class="page-heading">
+    <span class="eyebrow">OPERAÇÃO</span>
+    <h1>Viagens</h1>
+    <p>Registre as viagens informando o passageiro, o trecho e a data.</p>
+</section>
+
+<section class="module-panel viagem-panel" aria-labelledby="viagens-title">
+    <header class="module-panel-header">
+        <strong id="viagens-title">Viagens cadastradas</strong>
+        <div class="passenger-header-tools">
+            @if (!_isLoading && _loadError is null)
+            {
+                <span class="passenger-count">@_viagens.Count</span>
+            }
+            <a class="passenger-home-button" href="/" aria-label="Voltar à tela inicial" title="Voltar à tela inicial">
+                <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m9 5-5 5 5 5M4 10h12" /></svg>
+                <span class="passenger-home-full">Voltar à tela inicial</span>
+                <span class="passenger-home-short">Início</span>
+            </a>
+            <button class="passenger-add-button"
+                    type="button"
+                    title="Nova viagem"
+                    aria-label="Adicionar viagem"
+                    @onclick="OpenCreateDialog">
+                <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M10 4v12M4 10h12" /></svg>
+            </button>
+        </div>
+    </header>
+
+    <div class="viagem-filters" role="search" aria-label="Filtros das viagens">
+        <div class="viagem-filter">
+            <label class="passenger-field-label" for="filtro-data-inicial">Data inicial</label>
+            <input id="filtro-data-inicial"
+                   class="passenger-name-input passenger-create-input"
+                   type="date"
+                   @bind="_filtro.DataInicial"
+                   @bind:after="ApplyFiltersAsync" />
+        </div>
+        <div class="viagem-filter">
+            <label class="passenger-field-label" for="filtro-data-final">Data final</label>
+            <input id="filtro-data-final"
+                   class="passenger-name-input passenger-create-input"
+                   type="date"
+                   @bind="_filtro.DataFinal"
+                   @bind:after="ApplyFiltersAsync" />
+        </div>
+        <div class="viagem-filter viagem-filter-wide">
+            <label class="passenger-field-label" for="filtro-passageiro">Passageiro</label>
+            <LookupField TItem="PassageiroOption"
+                         Id="filtro-passageiro"
+                         Placeholder="Todos os passageiros"
+                         Search="SearchPassageirosAsync"
+                         ItemText="passageiro => passageiro.Nome"
+                         ItemDetail="FormatPassageiroCode"
+                         @bind-Selected="_filtro.Passageiro"
+                         @bind-Selected:after="ApplyFiltersAsync" />
+        </div>
+        <div class="viagem-filter viagem-filter-wide">
+            <label class="passenger-field-label" for="filtro-trecho">Trecho</label>
+            <LookupField TItem="TrechoOption"
+                         Id="filtro-trecho"
+                         Placeholder="Todos os trechos"
+                         Search="SearchTrechosAsync"
+                         ItemText="trecho => FormatRoute(trecho)"
+                         ItemDetail="trecho => FormatValue(trecho.Valor)"
+                         @bind-Selected="_filtro.Trecho"
+                         @bind-Selected:after="ApplyFiltersAsync" />
+        </div>
+        <button class="passenger-cancel-button viagem-filter-clear"
+                type="button"
+                disabled="@(!_filtro.HasAny)"
+                @onclick="ClearFiltersAsync">Limpar filtros</button>
+    </div>
+
+    @if (_filterError is not null)
+    {
+        <div class="passenger-feedback passenger-feedback-error" role="alert">@_filterError</div>
+    }
+
+    @if (_statusMessage is not null)
+    {
+        <div class="passenger-feedback passenger-feedback-success" role="status">@_statusMessage</div>
+    }
+
+    @if (_actionError is not null)
+    {
+        <div class="passenger-feedback passenger-feedback-error" role="alert">@_actionError</div>
+    }
+
+    @if (_isLoading)
+    {
+        <div class="passenger-feedback" role="status">Carregando viagens...</div>
+    }
+    else if (_loadError is not null)
+    {
+        <div class="passenger-feedback passenger-feedback-error" role="alert">@_loadError</div>
+    }
+    else if (_viagens.Count == 0)
+    {
+        <div class="passenger-feedback">
+            @(_filtro.HasAny ? "Nenhuma viagem encontrada para os filtros informados." : "Nenhuma viagem cadastrada.")
+        </div>
+    }
+    else
+    {
+        <div class="passenger-table-wrap">
+            <table class="passenger-table viagem-table">
+                <thead>
+                    <tr>
+                        <th scope="col">ID viagem</th>
+                        <th scope="col">Data</th>
+                        <th scope="col">Passageiro</th>
+                        <th scope="col">Trecho</th>
+                        <th scope="col">Valor</th>
+                        <th scope="col">Pago</th>
+                        <th scope="col"><span class="visually-hidden">Ações</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var viagem in _viagens)
+                    {
+                        <tr @key="viagem.IdViagem">
+                            <td class="passenger-id">@FormatId(viagem.IdViagem)</td>
+                            <td class="viagem-date">@FormatDate(viagem.DataViagem)</td>
+                            <td>@viagem.NomePassageiro</td>
+                            <td>@viagem.Origem<span class="viagem-route-arrow" aria-label="para">→</span>@viagem.Destino</td>
+                            <td class="trecho-value">@FormatValue(viagem.Valor)</td>
+                            <td>
+                                <span class="viagem-pago @(viagem.Pago ? "is-pago" : null)">@(viagem.Pago ? "Sim" : "Não")</span>
+                            </td>
+                            <td>
+                                <div class="passenger-actions">
+                                    <button class="passenger-action"
+                                            type="button"
+                                            title="Editar viagem"
+                                            aria-label="Editar viagem @FormatId(viagem.IdViagem)"
+                                            disabled="@(_deletingId is not null)"
+                                            @onclick="() => OpenEditDialog(viagem)">
+                                        <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m13 4 3 3M4 16l3.5-.7L16 6a2.1 2.1 0 0 0-3-3l-8.5 8.7L4 16z" /></svg>
+                                    </button>
+                                    <button class="passenger-action passenger-action-delete"
+                                            type="button"
+                                            title="Excluir viagem"
+                                            aria-label="Excluir viagem @FormatId(viagem.IdViagem)"
+                                            disabled="@(_deletingId is not null)"
+                                            @onclick="() => DeleteAsync(viagem)">
+                                        <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M4 6h12M8 6V4h4v2m3 0-.7 10H5.7L5 6m3 3v4m4-4v4" /></svg>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@if (_isDialogOpen)
+{
+    <div class="passenger-dialog-backdrop">
+        <section class="passenger-dialog viagem-dialog" role="dialog" aria-modal="true" aria-labelledby="viagem-dialog-title">
+            <header class="passenger-dialog-header">
+                <div>
+                    <span class="eyebrow">@(_editingId is null ? "NOVO CADASTRO" : $"VIAGEM {FormatId(_editingId.Value)}")</span>
+                    <h2 id="viagem-dialog-title">@(_editingId is null ? "Adicionar viagem" : "Editar viagem")</h2>
+                </div>
+                <button class="passenger-action"
+                        type="button"
+                        title="Fechar"
+                        aria-label="Fechar janela da viagem"
+                        disabled="@_isSaving"
+                        @onclick="CloseDialog">
+                    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m5 5 10 10M15 5 5 15" /></svg>
+                </button>
+            </header>
+
+            <label class="passenger-field-label" for="viagem-passageiro">Passageiro</label>
+            <LookupField TItem="PassageiroOption"
+                         Id="viagem-passageiro"
+                         Placeholder="Digite parte do nome"
+                         Search="SearchPassageirosAsync"
+                         ItemText="passageiro => passageiro.Nome"
+                         ItemDetail="FormatPassageiroCode"
+                         @bind-Selected="_form.Passageiro"
+                         Disabled="_isSaving" />
+
+            <label class="passenger-field-label trecho-second-field" for="viagem-trecho">Trecho</label>
+            <LookupField TItem="TrechoOption"
+                         Id="viagem-trecho"
+                         Placeholder="Digite parte da origem"
+                         Search="SearchTrechosAsync"
+                         ItemText="trecho => FormatRoute(trecho)"
+                         ItemDetail="trecho => FormatValue(trecho.Valor)"
+                         @bind-Selected="_form.Trecho"
+                         Disabled="_isSaving" />
+
+            <label class="passenger-field-label trecho-second-field" for="viagem-data">Data da viagem</label>
+            <input id="viagem-data"
+                   class="passenger-name-input passenger-create-input"
+                   type="date"
+                   @bind="_form.DataViagem"
+                   disabled="@_isSaving" />
+
+            <label class="viagem-pago-field trecho-second-field" for="viagem-pago">
+                <input id="viagem-pago"
+                       type="checkbox"
+                       @bind="_form.Pago"
+                       disabled="@_isSaving" />
+                <span>Viagem paga</span>
+            </label>
+
+            @if (_dialogError is not null)
+            {
+                <div class="passenger-feedback-error" role="alert">@_dialogError</div>
+            }
+
+            <div class="passenger-dialog-actions">
+                <button class="passenger-cancel-button"
+                        type="button"
+                        disabled="@_isSaving"
+                        @onclick="CloseDialog">Cancelar</button>
+                <button class="passenger-submit-button" type="button" disabled="@_isSaving" @onclick="SaveAsync">
+                    @if (_isSaving)
+                    {
+                        <span>Salvando...</span>
+                    }
+                    else
+                    {
+                        <span>@(_editingId is null ? "Adicionar viagem" : "Salvar alterações")</span>
+                    }
+                </button>
+            </div>
+        </section>
+    </div>
+}
+
+@code {
+    private static readonly CultureInfo BrazilianCulture = CultureInfo.GetCultureInfo("pt-BR");
+    private List<ViagemRow> _viagens = [];
+    private ViagemForm _form = new();
+    private ViagemFiltro _filtro = new();
+    private decimal? _editingId;
+    private decimal? _deletingId;
+    private string? _loadError;
+    private string? _actionError;
+    private string? _statusMessage;
+    private string? _dialogError;
+    private string? _filterError;
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private bool _isDialogOpen;
+
+    protected override Task OnInitializedAsync() => LoadViagensAsync();
+
+    private async Task LoadViagensAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+        try
+        {
+            _viagens = await Http.GetFromJsonAsync<List<ViagemRow>>(BuildViagensUrl()) ?? [];
+        }
+        catch (HttpRequestException)
+        {
+            _loadError = "Não foi possível carregar as viagens. Verifique a conexão com o servidor.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private string BuildViagensUrl()
+    {
+        var query = new List<string>();
+        if (_filtro.DataInicial is { } dataInicial)
+        {
+            query.Add($"dataInicial={dataInicial:yyyy-MM-dd}");
+        }
+
+        if (_filtro.DataFinal is { } dataFinal)
+        {
+            query.Add($"dataFinal={dataFinal:yyyy-MM-dd}");
+        }
+
+        if (_filtro.Passageiro is { } passageiro)
+        {
+            query.Add($"idPassageiro={FormatId(passageiro.IdPass)}");
+        }
+
+        if (_filtro.Trecho is { } trecho)
+        {
+            query.Add($"idTrecho={FormatId(trecho.IdTrecho)}");
+        }
+
+        return query.Count == 0 ? "api/viagens" : $"api/viagens?{string.Join("&", query)}";
+    }
+
+    private async Task ApplyFiltersAsync()
+    {
+        _statusMessage = null;
+        _actionError = null;
+        if (_filtro.DataInicial > _filtro.DataFinal)
+        {
+            _filterError = "A data inicial não pode ser posterior à data final.";
+            return;
+        }
+
+        _filterError = null;
+        await LoadViagensAsync();
+    }
+
+    private async Task ClearFiltersAsync()
+    {
+        _filtro = new ViagemFiltro();
+        await ApplyFiltersAsync();
+    }
+
+    private async Task<IReadOnlyList<PassageiroOption>> SearchPassageirosAsync(string nome, CancellationToken cancellationToken) =>
+        await Http.GetFromJsonAsync<List<PassageiroOption>>(
+            $"api/passageiros/busca?nome={Uri.EscapeDataString(nome)}", cancellationToken) ?? [];
+
+    private async Task<IReadOnlyList<TrechoOption>> SearchTrechosAsync(string origem, CancellationToken cancellationToken) =>
+        await Http.GetFromJsonAsync<List<TrechoOption>>(
+            $"api/trechos/busca?origem={Uri.EscapeDataString(origem)}", cancellationToken) ?? [];
+
+    private void OpenCreateDialog()
+    {
+        _editingId = null;
+        _form = new ViagemForm { DataViagem = DateOnly.FromDateTime(DateTime.Today) };
+        OpenDialog();
+    }
+
+    private void OpenEditDialog(ViagemRow viagem)
+    {
+        _editingId = viagem.IdViagem;
+        _form = new ViagemForm
+        {
+            Passageiro = new PassageiroOption(viagem.IdPassageiro, viagem.NomePassageiro),
+            Trecho = new TrechoOption(viagem.IdTrecho, viagem.Origem, viagem.Destino, viagem.Valor),
+            DataViagem = viagem.DataViagem,
+            Pago = viagem.Pago
+        };
+        OpenDialog();
+    }
+
+    private void OpenDialog()
+    {
+        _dialogError = null;
+        _actionError = null;
+        _statusMessage = null;
+        _isDialogOpen = true;
+    }
+
+    private void CloseDialog()
+    {
+        _isDialogOpen = false;
+        _dialogError = null;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_form.Passageiro is null || _form.Trecho is null || _form.DataViagem is null)
+        {
+            _dialogError = _form.Passageiro is null ? "Selecione um passageiro na lista."
+                : _form.Trecho is null ? "Selecione um trecho na lista."
+                : "Informe a data da viagem.";
+            return;
+        }
+
+        _isSaving = true;
+        _dialogError = null;
+        try
+        {
+            var request = new ViagemRequest(_form.Passageiro.IdPass, _form.Trecho.IdTrecho, _form.DataViagem.Value, _form.Pago);
+            using var response = _editingId is null
+                ? await Http.PostAsJsonAsync("api/viagens", request)
+                : await Http.PutAsJsonAsync($"api/viagens/{FormatId(_editingId.Value)}", request);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var wasEditing = _editingId is not null;
+                CloseDialog();
+                await LoadViagensAsync();
+                if (_loadError is null)
+                {
+                    _statusMessage = wasEditing ? "Viagem atualizada." : "Viagem cadastrada.";
+                }
+            }
+            else
+            {
+                _dialogError = response.StatusCode switch
+                {
+                    System.Net.HttpStatusCode.BadRequest => "O passageiro ou o trecho não está mais cadastrado. Refaça a seleção.",
+                    System.Net.HttpStatusCode.NotFound => "Esta viagem não foi encontrada. Atualize a página e tente novamente.",
+                    _ => "Não foi possível salvar a viagem."
+                };
+            }
+        }
+        catch (HttpRequestException)
+        {
+            _dialogError = "Não foi possível salvar a viagem. Verifique a conexão com o servidor.";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task DeleteAsync(ViagemRow viagem)
+    {
+        var confirmed = await JavaScript.InvokeAsync<bool>("confirm",
+            $"Excluir a viagem de {viagem.NomePassageiro} em {FormatDate(viagem.DataViagem)} ({viagem.Origem} → {viagem.Destino})?");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        _deletingId = viagem.IdViagem;
+        _actionError = null;
+        _statusMessage = null;
+        try
+        {
+            using var response = await Http.DeleteAsync($"api/viagens/{FormatId(viagem.IdViagem)}");
+            if (response.IsSuccessStatusCode)
+            {
+                _viagens.RemoveAll(item => item.IdViagem == viagem.IdViagem);
+                _statusMessage = "Viagem excluída.";
+            }
+            else
+            {
+                _actionError = response.StatusCode == System.Net.HttpStatusCode.NotFound
+                    ? "Esta viagem já não está cadastrada."
+                    : "Não foi possível excluir a viagem.";
+            }
+        }
+        catch (HttpRequestException)
+        {
+            _actionError = "Não foi possível excluir a viagem. Verifique a conexão com o servidor.";
+        }
+        finally
+        {
+            _deletingId = null;
+        }
+    }
+
+    private static string FormatId(decimal id) => id.ToString("0", CultureInfo.InvariantCulture);
+    private static string FormatDate(DateOnly data) => data.ToString("dd/MM/yyyy", BrazilianCulture);
+    private static string FormatValue(decimal valor) => valor.ToString("C2", BrazilianCulture);
+    private static string FormatPassageiroCode(PassageiroOption passageiro) => $"Cód. {FormatId(passageiro.IdPass)}";
+    private static string FormatRoute(TrechoOption trecho) => $"{trecho.Origem} → {trecho.Destino}";
+
+    private sealed record ViagemRow(
+        decimal IdViagem,
+        DateOnly DataViagem,
+        decimal IdPassageiro,
+        string NomePassageiro,
+        decimal IdTrecho,
+        string Origem,
+        string Destino,
+        decimal Valor,
+        bool Pago);
+
+    private sealed record ViagemRequest(decimal IdPassageiro, decimal IdTrecho, DateOnly DataViagem, bool Pago);
+    private sealed record PassageiroOption(decimal IdPass, string Nome);
+    private sealed record TrechoOption(decimal IdTrecho, string Origem, string Destino, decimal Valor);
+
+    private sealed class ViagemFiltro
+    {
+        public DateOnly? DataInicial { get; set; }
+        public DateOnly? DataFinal { get; set; }
+        public PassageiroOption? Passageiro { get; set; }
+        public TrechoOption? Trecho { get; set; }
+        public bool HasAny => DataInicial is not null || DataFinal is not null || Passageiro is not null || Trecho is not null;
+    }
+
+    private sealed class ViagemForm
+    {
+        public PassageiroOption? Passageiro { get; set; }
+        public TrechoOption? Trecho { get; set; }
+        public DateOnly? DataViagem { get; set; }
+        public bool Pago { get; set; }
+    }
+}

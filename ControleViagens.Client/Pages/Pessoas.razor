@@ -1,0 +1,410 @@
+@page "/pessoas"
+@using System.ComponentModel.DataAnnotations
+@using System.Globalization
+@inject HttpClient Http
+@inject IJSRuntime JavaScript
+
+<PageTitle>Passageiros | Controle de Viagens</PageTitle>
+
+<section class="page-heading">
+    <span class="eyebrow">CADASTRO</span>
+    <h1>Passageiros</h1>
+    <p>Consulte e edite os passageiros cadastrados.</p>
+</section>
+
+<section class="module-panel passenger-panel" aria-labelledby="passengers-title">
+    <header class="module-panel-header">
+        <strong id="passengers-title">Passageiros cadastrados</strong>
+        <div class="passenger-header-tools">
+            @if (!_isLoading && _errorMessage is null)
+            {
+                <span class="passenger-count">@_passageiros.Count</span>
+            }
+            <a class="passenger-home-button" href="/" aria-label="Voltar à tela inicial" title="Voltar à tela inicial">
+                <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m9 5-5 5 5 5M4 10h12" /></svg>
+                <span class="passenger-home-full">Voltar à tela inicial</span>
+                <span class="passenger-home-short">Início</span>
+            </a>
+            <button class="passenger-add-button"
+                    type="button"
+                    title="Novo passageiro"
+                    aria-label="Adicionar passageiro"
+                    @onclick="OpenCreateDialog">
+                <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M10 4v12M4 10h12" /></svg>
+            </button>
+        </div>
+    </header>
+
+    @if (_isLoading)
+    {
+        <div class="passenger-feedback" role="status">Carregando passageiros...</div>
+    }
+    else if (_errorMessage is not null)
+    {
+        <div class="passenger-feedback passenger-feedback-error" role="alert">@_errorMessage</div>
+    }
+    else if (_passageiros.Count == 0)
+    {
+        <div class="passenger-feedback">Nenhum passageiro cadastrado.</div>
+    }
+    else
+    {
+        @if (_statusMessage is not null)
+        {
+            <div class="passenger-feedback passenger-feedback-success" role="status">@_statusMessage</div>
+        }
+
+        @if (_actionError is not null)
+        {
+            <div class="passenger-feedback passenger-feedback-error" role="alert">@_actionError</div>
+        }
+
+        <div class="passenger-table-wrap">
+            <table class="passenger-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Código</th>
+                        <th scope="col">Nome</th>
+                        <th scope="col"><span class="visually-hidden">Ações</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var passageiro in _passageiros)
+                    {
+                        <tr @key="passageiro.IdPass">
+                            <td class="passenger-id">@passageiro.IdPass</td>
+                            <td>
+                                @if (_editingId == passageiro.IdPass)
+                                {
+                                    <input class="passenger-name-input"
+                                           aria-label="Nome do passageiro"
+                                           @bind="_editedName"
+                                           @onkeydown="HandleEditKeyDownAsync"
+                                           disabled="@_isSaving" />
+                                }
+                                else
+                                {
+                                    @passageiro.Nome
+                                }
+                            </td>
+                            <td>
+                                <div class="passenger-actions">
+                                    @if (_editingId == passageiro.IdPass)
+                                    {
+                                        <button class="passenger-action passenger-action-save"
+                                                type="button"
+                                                title="Salvar alteração"
+                                                aria-label="Salvar alteração de @passageiro.Nome"
+                                                disabled="@_isSaving"
+                                                @onclick="() => SaveEditAsync(passageiro)">
+                                            <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m4 10 4 4 8-8" /></svg>
+                                        </button>
+                                        <button class="passenger-action"
+                                                type="button"
+                                                title="Cancelar edição"
+                                                aria-label="Cancelar edição de @passageiro.Nome"
+                                                disabled="@_isSaving"
+                                                @onclick="CancelEdit">
+                                            <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m5 5 10 10M15 5 5 15" /></svg>
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button class="passenger-action"
+                                                type="button"
+                                                title="Editar passageiro"
+                                                aria-label="Editar passageiro @passageiro.Nome"
+                                                disabled="@(_editingId is not null || _deletingId is not null)"
+                                                @onclick="() => BeginEdit(passageiro)">
+                                            <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m13 4 3 3M4 16l3.5-.7L16 6a2.1 2.1 0 0 0-3-3l-8.5 8.7L4 16z" /></svg>
+                                        </button>
+                                        <button class="passenger-action passenger-action-delete"
+                                                type="button"
+                                                title="Excluir passageiro"
+                                                aria-label="Excluir passageiro @passageiro.Nome"
+                                                disabled="@(_editingId is not null || _deletingId is not null)"
+                                                @onclick="() => DeleteAsync(passageiro)">
+                                            <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M4 6h12M8 6V4h4v2m3 0-.7 10H5.7L5 6m3 3v4m4-4v4" /></svg>
+                                        </button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@if (_isCreateDialogOpen)
+{
+    <div class="passenger-dialog-backdrop">
+        <section class="passenger-dialog" role="dialog" aria-modal="true" aria-labelledby="create-passenger-title">
+            <header class="passenger-dialog-header">
+                <div>
+                    <span class="eyebrow">NOVO CADASTRO</span>
+                    <h2 id="create-passenger-title">Adicionar passageiro</h2>
+                </div>
+                <button class="passenger-action"
+                        type="button"
+                        title="Fechar"
+                        aria-label="Fechar janela de inclusão"
+                        disabled="@_isCreating"
+                        @onclick="CloseCreateDialog">
+                    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m5 5 10 10M15 5 5 15" /></svg>
+                </button>
+            </header>
+
+            <EditForm Model="_newPassageiro" OnValidSubmit="CreateAsync">
+                <DataAnnotationsValidator />
+                <label class="passenger-field-label" for="new-passenger-name">Nome do passageiro</label>
+                <InputText id="new-passenger-name"
+                           class="passenger-name-input passenger-create-input"
+                           @bind-Value="_newPassageiro.Nome"
+                           disabled="@_isCreating"
+                           autofocus />
+                <ValidationMessage For="() => _newPassageiro.Nome" />
+
+                @if (_createError is not null)
+                {
+                    <div class="passenger-feedback-error" role="alert">@_createError</div>
+                }
+
+                <div class="passenger-dialog-actions">
+                    <button class="passenger-cancel-button"
+                            type="button"
+                            disabled="@_isCreating"
+                            @onclick="CloseCreateDialog">Cancelar</button>
+                    <button class="passenger-submit-button" type="submit" disabled="@_isCreating">
+                        @if (_isCreating)
+                        {
+                            <span>Salvando...</span>
+                        }
+                        else
+                        {
+                            <span>Adicionar passageiro</span>
+                        }
+                    </button>
+                </div>
+            </EditForm>
+        </section>
+    </div>
+}
+
+@code {
+    private List<PassageiroRow> _passageiros = [];
+    private decimal? _editingId;
+    private decimal? _deletingId;
+    private string _editedName = string.Empty;
+    private string? _errorMessage;
+    private string? _actionError;
+    private string? _statusMessage;
+    private string? _createError;
+    private NewPassageiroModel _newPassageiro = new();
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private bool _isCreating;
+    private bool _isCreateDialogOpen;
+
+    protected override Task OnInitializedAsync() => LoadPassengersAsync();
+
+    private async Task LoadPassengersAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+        try
+        {
+            _passageiros = await Http.GetFromJsonAsync<List<PassageiroRow>>("api/passageiros") ?? [];
+        }
+        catch (HttpRequestException)
+        {
+            _errorMessage = "Não foi possível carregar os passageiros. Verifique a conexão com o servidor.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void OpenCreateDialog()
+    {
+        _newPassageiro = new NewPassageiroModel();
+        _createError = null;
+        _isCreateDialogOpen = true;
+    }
+
+    private void CloseCreateDialog()
+    {
+        _isCreateDialogOpen = false;
+        _createError = null;
+    }
+
+    private async Task CreateAsync()
+    {
+        var nome = _newPassageiro.Nome.Trim();
+        if (nome.Length == 0)
+        {
+            _createError = "Informe o nome do passageiro.";
+            return;
+        }
+
+        _isCreating = true;
+        _createError = null;
+        _actionError = null;
+        _statusMessage = null;
+        try
+        {
+            using var response = await Http.PostAsJsonAsync("api/passageiros", new CreatePassageiroRequest(nome));
+            if (response.IsSuccessStatusCode)
+            {
+                CloseCreateDialog();
+                await LoadPassengersAsync();
+                if (_errorMessage is null)
+                {
+                    _statusMessage = "Passageiro cadastrado.";
+                }
+            }
+            else
+            {
+                _createError = response.StatusCode == System.Net.HttpStatusCode.BadRequest
+                    ? "Informe um nome válido para o passageiro."
+                    : "Não foi possível cadastrar o passageiro.";
+            }
+        }
+        catch (HttpRequestException)
+        {
+            _createError = "Não foi possível cadastrar o passageiro. Verifique a conexão com o servidor.";
+        }
+        finally
+        {
+            _isCreating = false;
+        }
+    }
+
+    private void BeginEdit(PassageiroRow passageiro)
+    {
+        _editingId = passageiro.IdPass;
+        _editedName = passageiro.Nome;
+        _actionError = null;
+        _statusMessage = null;
+    }
+
+    private void CancelEdit()
+    {
+        _editingId = null;
+        _editedName = string.Empty;
+        _actionError = null;
+    }
+
+    private async Task HandleEditKeyDownAsync(KeyboardEventArgs eventArgs)
+    {
+        if (eventArgs.Key == "Escape")
+        {
+            CancelEdit();
+        }
+        else if (eventArgs.Key == "Enter" && _editingId is not null)
+        {
+            var passageiro = _passageiros.FirstOrDefault(item => item.IdPass == _editingId);
+            if (passageiro is not null)
+            {
+                await SaveEditAsync(passageiro);
+            }
+        }
+    }
+
+    private async Task SaveEditAsync(PassageiroRow passageiro)
+    {
+        var nome = _editedName.Trim();
+        if (nome.Length == 0)
+        {
+            _actionError = "Informe o nome do passageiro.";
+            return;
+        }
+
+        _isSaving = true;
+        _actionError = null;
+        _statusMessage = null;
+        try
+        {
+            var id = passageiro.IdPass.ToString(CultureInfo.InvariantCulture);
+            using var response = await Http.PutAsJsonAsync($"api/passageiros/{id}", new UpdatePassageiroRequest(nome));
+            if (response.IsSuccessStatusCode)
+            {
+                var index = _passageiros.FindIndex(item => item.IdPass == passageiro.IdPass);
+                if (index >= 0)
+                {
+                    _passageiros[index] = _passageiros[index] with { Nome = nome };
+                }
+
+                _editingId = null;
+                _editedName = string.Empty;
+                _statusMessage = "Passageiro atualizado.";
+            }
+            else
+            {
+                _actionError = response.StatusCode == System.Net.HttpStatusCode.NotFound
+                    ? "Este passageiro não foi encontrado. Atualize a página e tente novamente."
+                    : "Não foi possível salvar a alteração.";
+            }
+        }
+        catch (HttpRequestException)
+        {
+            _actionError = "Não foi possível salvar a alteração. Verifique a conexão com o servidor.";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task DeleteAsync(PassageiroRow passageiro)
+    {
+        var confirmed = await JavaScript.InvokeAsync<bool>("confirm", $"Excluir o passageiro {passageiro.Nome}?");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        _deletingId = passageiro.IdPass;
+        _actionError = null;
+        _statusMessage = null;
+        try
+        {
+            var id = passageiro.IdPass.ToString(CultureInfo.InvariantCulture);
+            using var response = await Http.DeleteAsync($"api/passageiros/{id}");
+            if (response.IsSuccessStatusCode)
+            {
+                _passageiros.RemoveAll(item => item.IdPass == passageiro.IdPass);
+                _statusMessage = "Passageiro excluído.";
+            }
+            else
+            {
+                _actionError = response.StatusCode switch
+                {
+                    System.Net.HttpStatusCode.NotFound => "Este passageiro já não está cadastrado.",
+                    System.Net.HttpStatusCode.Conflict => "Este passageiro possui viagens registradas e não pode ser excluído.",
+                    _ => "Não foi possível excluir o passageiro."
+                };
+            }
+        }
+        catch (HttpRequestException)
+        {
+            _actionError = "Não foi possível excluir o passageiro. Verifique a conexão com o servidor.";
+        }
+        finally
+        {
+            _deletingId = null;
+        }
+    }
+
+    private sealed record PassageiroRow(decimal IdPass, string Nome);
+    private sealed record UpdatePassageiroRequest(string Nome);
+    private sealed record CreatePassageiroRequest(string Nome);
+
+    private sealed class NewPassageiroModel
+    {
+        [Required(ErrorMessage = "Informe o nome do passageiro.")]
+        public string Nome { get; set; } = string.Empty;
+    }
+}
