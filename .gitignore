@@ -4,3 +4,4 @@
 .vscode/
 dist/
 ControleViagens.Api/appsettings.Development.json
+.claude/settings.local.json
